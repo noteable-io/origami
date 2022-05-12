@@ -1,0 +1,91 @@
+# NOTE: you have to use single-quoted strings in TOML for regular expressions.
+# It's the equivalent of r-strings in Python.  Multiline strings are treated as
+# verbose regular expressions by Black.  Use [ ] to denote a significant space
+# character.
+
+[tool.poetry]
+name = "origami"
+version = "0.0.1"
+description = "The noteable API interface"
+authors = ["Matt Seal <matt@noteable.io>"]
+maintainers = ["Matt Seal <matt@noteable.io>"]
+license = "BSD-3-Clause"
+readme = "README.md"
+repository = "https://github.com/noteable-io/origami"
+# old setup.cfg had a bdist_wheel option.
+# To build a wheel, use poetry build -f wheel
+keywords = ["notebook", "api", "noteable"]
+classifiers=[
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+]
+
+# Manifest.in is subsumed by poetry here
+# https://python-poetry.org/docs/pyproject/#include-and-exclude
+include = ["gate/constants/starter.ipynb.bz2"]
+
+[[tool.poetry.source]]
+name = "noteable-origami"
+url = "https://pypi.org"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+httpx = "^0.22.0"
+websocket = "^0.2.1"
+
+[tool.poetry.dev-dependencies]
+flake8-docstrings = "^1.6.0"
+pytest-httpx = "^0.20.0"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+  | src/nbformat
+
+  # The following are specific to Black, you probably don't want those.
+  | blib2to3
+  | tests/data
+  | profiling
+)/
+'''
+skip-string-normalization = true
+
+[tool.isort]
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+known_third_party = []
+
+[tool.coverage.run]
+branch = false
+omit = ["origami/_version.py", "*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = ["if self.debug:",
+                 "pragma: no cover",
+                 "raise AssertionError",
+                 "raise NotImplementedError",
+                 "if __name__ == '__main__':"]
+ignore_errors = true
+omit = ["origami/_version.py"]
