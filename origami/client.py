@@ -119,8 +119,8 @@ class NoteableClient(httpx.AsyncClient):
         self.rtu_socket = await websockets.connect(self.ws_uri, extra_headers=headers)
         # Loop indefinitely over the incoming websocket messages
         self.process_task_loop = asyncio.create_task(self._process_messages())
-        # Ping to prove we're readily connected
-        await self.ping_rtu()
+        # Ping to prove we're readily connected (enable if trying to determine if connecting vs auth is a problem)
+        # await self.ping_rtu()
         # Authenticate for more advanced API calls
         await self.authenticate()
         return res
@@ -171,7 +171,6 @@ class NoteableClient(httpx.AsyncClient):
             next_trigger=Future(),
             response_schema=response_schema,
         )
-        logger.error(tracker)
 
         async def wrapped_callable(resp: GenericRTUMessage):
             """Wrapps the user callback function to handle message parsing and future triggers."""
@@ -226,6 +225,7 @@ class NoteableClient(httpx.AsyncClient):
             await asyncio.sleep(0)
             try:
                 msg = await self.rtu_socket.recv()
+                logger.error(msg)
                 if not isinstance(msg, str):
                     logger.exception(f"Unexepected message type found on socket: {type(msg)}")
                     continue

@@ -25,8 +25,9 @@ async def test_client_websocket_context(connect_mock):
         connect_mock.return_value.recv.return_value = GenericRTUReply(
             msg_id=uuid4(),
             transaction_id=req_id,
-            event='ping_reply',
+            event='authenticate_reply',
             channel='system',
+            data={"success": True},
             processed_timestamp=datetime.now(),
         ).json()
 
@@ -39,3 +40,4 @@ async def test_client_websocket_context(connect_mock):
         connect_mock.return_value.close.assert_not_called()
     connect_mock.return_value.recv.assert_called()
     connect_mock.return_value.close.assert_called_once()
+
