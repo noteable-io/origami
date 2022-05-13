@@ -71,7 +71,7 @@ class GenericRTUReplySchema(GenericModel, Generic[RTUData]):
     # The optional transaction ID given by the client during the request
     transaction_id: UUID
 
-    # A message ID injected by Gate.
+    # A message ID injected by the server.
     # This can be used by the client or server to ensure that the same message
     # isn't processed more than once, if we migrate from Redis to something that
     # guarantees a message is delivered at least once.
@@ -285,7 +285,7 @@ class KernelStatus(enum.Enum):
     # go to scheduled.
     REQUESTED = "requested"
 
-    # This Gate instance knows about the kernel and is waiting to request resources
+    # This server instance knows about the kernel and is waiting to request resources
     # from Kubernetes.
     SCHEDULED = "scheduled"
 

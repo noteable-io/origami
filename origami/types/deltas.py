@@ -120,9 +120,9 @@ class CellStateMessage(BaseModel):
     state: CellState
     execution_count: Optional[int]
 
-    # This is Gate's (cockroach's "now") time at which it recieved an execution request from geas
+    # This is the server's time at which it recieved an execution request
     queued_at: Optional[datetime]
-    # Start and finish times are taken from planar-ally messages (set from planar-ally's time of witnessing)
+    # Start and finish times are taken from planar-ally messages (set from kernel's time of witnessing)
     started_at: Optional[datetime]
     finished_at: Optional[datetime]
     duration_secs: Optional[float]
