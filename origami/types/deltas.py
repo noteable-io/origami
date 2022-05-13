@@ -196,22 +196,34 @@ class V2CellOutputCollectionProperties(BaseModel):
 DeltaPropertiesT = TypeVar("DeltaPropertiesT")
 
 
-class FileDeltaBase(GenericModel, Generic[DeltaPropertiesT]):
-    """The base type model for FileDeltas. This is used to provide specializations
-    for particular message types without needing to specify these common fields.
+class FileDeltaRequestBase(GenericModel, Generic[DeltaPropertiesT]):
+    """The base type model for FileDelta requests being egnerated. This is used
+    to provide specializations for particular message types without needing to
+    specify these common fields.
     """
 
     id: uuid.UUID
-    parent_delta_id: Optional[uuid.UUID]
-    file_id: uuid.UUID
     delta_type: FileDeltaType
     delta_action: FileDeltaAction
     resource_id: str = NULL_RESOURCE_SENTINEL
-    created_by_id: Optional[uuid.UUID]
+    parent_delta_id: Optional[uuid.UUID]
 
     # Properties for rendering the specified file delta.
     # They may differ for each delta_type and action.
     properties: Optional[DeltaPropertiesT]
+
+    class Config:
+        """Indicates we allow enum values in the dataclass"""
+
+        use_enum_values = True
+
+
+class FileDeltaBase(FileDeltaRequestBase[DeltaPropertiesT], Generic[DeltaPropertiesT]):
+    """The base type model for FileDeltas reponses. This is used to provide specializations
+    for particular message types without needing to specify these common fields.
+    """
+    file_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID]
 
     class Config:
         """Indicates we allow enum values in the dataclass"""
@@ -259,9 +271,10 @@ NBCellDelta = FileDeltaBase[NBCellProperties]
 NBMetadataDelta = FileDeltaBase[NBMetadataProperties]
 CellExecuteDelta = FileDeltaBase[Any]
 CellOutputCollectionDelta = FileDeltaBase[V2CellOutputCollectionProperties]
+CellContentsDelta = FileDeltaBase[V2CellContentsProperties]
 
 
-class CellContentsDelta(FileDeltaBase[V2CellContentsProperties]):
+class CellContentsDeltaRequestData(FileDeltaRequestBase[V2CellContentsProperties]):
     """The type representing a content change in a document."""
 
     @root_validator

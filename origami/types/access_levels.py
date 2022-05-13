@@ -1,0 +1,109 @@
+import enum
+from typing import List, Optional, Set
+
+from pydantic import BaseModel
+
+
+@enum.unique
+class AccessLevel(enum.Enum):
+    owner = "role:owner"
+    contributor = "role:contributor"
+    commenter = "role:commenter"
+    viewer = "role:viewer"
+    anonymous = "role:anonymous"
+    executor = "role:executor"
+
+    @classmethod
+    def values(cls) -> Set[str]:
+        return {x.value for x in cls}
+
+    @classmethod
+    def parse(cls, value) -> Optional["AccessLevel"]:
+        return AccessLevel(value) if value else None
+
+
+class AccessLevelAction(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    # general actions
+    create = enum.auto()
+    read = enum.auto()
+    update = enum.auto()
+    delete = enum.auto()
+    restore = enum.auto()
+
+    # Space specific actions
+    create_project = enum.auto()
+    create_dataset = enum.auto()
+    view_projects = enum.auto()
+    view_datasets = enum.auto()
+    modify_space_users = enum.auto()
+
+    # Project specific actions
+    modify_project_users = enum.auto()
+    create_file = enum.auto()
+    view_files = enum.auto()
+
+    # File specific actions
+    modify_file_users = enum.auto()
+    publish = enum.auto()
+    edit_cell = enum.auto()
+    execute_cell = enum.auto()
+    connect_kernel = enum.auto()
+    create_file_version = enum.auto()
+
+    # File comment actions
+    view_comments = enum.auto()
+    create_comment = enum.auto()
+    resolve_comments = enum.auto()
+    restore_comments = enum.auto()
+
+    # File metadata actions
+    update_in_notebook_metadata = enum.auto()
+    update_in_cell_metadata = enum.auto()
+
+    # Dataset specific actions
+    create_dataset_file = enum.auto()
+
+    # Secrets privileges, attached to either a space or a project
+    create_secret = enum.auto()
+    view_secret = enum.auto()
+    delete_secret = enum.auto()
+
+    # Datasource privileges, attached to either a space or a project.
+    create_datasource = enum.auto()
+    view_datasource = enum.auto()
+    delete_datasource = enum.auto()
+
+    def __lt__(self, other):
+        if self.__class__ is not other.__class__:
+            return NotImplemented
+        return self.value < other.value
+
+
+class Visibility(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    # the open visibility allows any logged-in user with access
+    # to the organization the ability to be granted an implicit access level
+    open = enum.auto()
+    # the private visibility is the default visibility and does not
+    # grant any implicit access level for a resource
+    private = enum.auto()
+
+    def is_private(self) -> bool:
+        return self is Visibility.private
+
+
+class ResourceData(BaseModel):
+    # actions_allowed are all the possible actions for this object that are allowed
+    actions_allowed: List[AccessLevelAction]
+    # actions_denied are all the possible actions for this object that are not allowed
+    actions_denied: List[AccessLevelAction]
+    # the access level the user effectively had on the resource, implicit or explicit
+    effective_access_level: Optional[AccessLevel] = None
+
+    def can(self, action: AccessLevelAction) -> bool:
+        return action in self.actions_allowed

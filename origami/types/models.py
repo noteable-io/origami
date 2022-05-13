@@ -43,3 +43,20 @@ class User(NoteableAPIModel):
     principal_id: str
     active: bool
     global_role: GlobalRole
+
+
+@enum.unique
+class Resource(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    organizations = enum.auto()
+    users = enum.auto()
+
+    spaces = enum.auto()
+    projects = enum.auto()
+    files = enum.auto()
+    datasets = enum.auto()
+    dataset_files = enum.auto()
+    comments = enum.auto()
+    kernel_sessions = enum.auto()

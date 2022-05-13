@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
-from .deltas import CellStateMessage, FileDelta
+from .deltas import CellStateMessage, FileDelta, CellContentsDeltaRequestData
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
@@ -429,6 +429,13 @@ class PingRequest(GenericRTURequest):
 
 
 PingReply = GenericRTUReply
+
+
+class CellContentsDeltaRequest(GenericRTURequestSchema[CellContentsDeltaRequestData]):
+    event: str = 'new_delta_request'
+
+
+CellContentsDeltaReply = GenericRTUReplySchema[TopicActionReplyData]
 
 
 RTU_MESSAGE_TYPES = {

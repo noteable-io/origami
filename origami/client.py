@@ -13,15 +13,24 @@ from uuid import UUID, uuid4
 
 import httpx
 import jwt
+from more_itertools import last
+import structlog
 import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
+from .types.files import File
+from .types.deltas import (
+    V2CellContentsProperties,
+    FileDeltaAction,
+    FileDeltaType,
+)
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
     AuthenticationReply,
     AuthenticationRequest,
     AuthenticationRequestData,
+    CellContentsDeltaReply,
     CallbackTracker,
     FileSubscribeReplySchema,
     GenericRTUMessage,
@@ -29,6 +38,7 @@ from .types.rtu import (
     GenericRTUReplySchema,
     GenericRTURequest,
     GenericRTURequestSchema,
+    CellContentsDeltaRequest,
     MinimalErrorSchema,
     PingReply,
     PingRequest,
@@ -36,7 +46,7 @@ from .types.rtu import (
     TopicActionReplyData,
 )
 
-logger = getLogger('noteable.origami.client')
+logger = structlog.get_logger('noteable.' + __name__)
 
 
 class ClientSettings(BaseSettings):
@@ -115,6 +125,7 @@ class NoteableClient(httpx.AsyncClient):
                 config = ClientConfig.parse_file(settings.auth0_config_path)
         self.config = config
 
+        self.user = None
         self.token = api_token or self.get_token()
         if isinstance(self.token, str):
             self.token = Token(access_token=api_token)
@@ -148,8 +159,15 @@ class NoteableClient(httpx.AsyncClient):
         """Formats the websocket URI out of the notable domain name."""
         return f"wss://{self.config.domain}/gate/api/v1/rtu"
 
+    @property
+    def api_server_uri(self):
+        """Formats the websocket URI out of the notable domain name."""
+        return f"https://{self.config.domain}/gate/api"
+
     def get_token(self):
-        """Fetches and api token using oauth client config settings."""
+        """Fetches and api token using oauth client config settings.
+        
+        WARNING: This is a blocking call so we can call it from init, but it should be quick"""
         url = f"https://{self.config.auth0_domain}/oauth/token"
         data = {
             "client_id": self.config.client_id,
@@ -163,6 +181,12 @@ class NoteableClient(httpx.AsyncClient):
         token = resp.json()["access_token"]
         token_data = jwt.decode(token, options={"verify_signature": False})
         return Token(access_token=token, **token_data)
+
+    async def get_file(self, file_id) -> File:
+        resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
+        resp.raise_for_status()
+        logger.error(resp.content)
+        return File.parse_raw(resp.content)
 
     async def __aenter__(self):
         """
@@ -410,16 +434,46 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def subscribe_file(self, file_id: UUID, timeout: float):
+    async def subscribe_file(self, file: Union[UUID, File], timeout: float, from_version_id: Optional[UUID]=None):
         """Subscribes to a specified file for updates about it's contents."""
+        if isinstance(file, File):
+            # TODO: Write test for file
+            file_id = file.id
+            # from_delta_id = file.last_save_delta_id
+            from_version_id = file.current_version_id
+        else:
+            file_id = file
+            # from_delta_id = from_delta_id
+            from_version_id = file.current_version_id
         channel = self.files_channel(file_id)
         req, tracker = self._gen_subscription_request(channel)
         tracker.response_schema = FileSubscribeReplySchema
-        # TODO: automate this
-        # req.data.from_version_id = "381063aa-b18b-4533-8fb1-ae602b85fd7b"
-        # TODO: set last_transaction_id from file payload
+        # TODO: write test for these fields
         req.data = {}
+        if from_version_id:
+            req.data['from_version_id'] = from_version_id
         # TODO: Handle delta catchups?
+        # if from_delta_id:
+        #     req.data['from_delta_id'] = from_delta_id
 
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def replace_cell_contents(self, file: File, cell_id: UUID, contents: str, timeout: float):
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                logger.error(f"Failed to submit cell change for file {file.id} -> {cell_id}")
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(),
+            FileDeltaType.cell_contents,
+            FileDeltaAction.replace,
+            cell_id,
+            properties=V2CellContentsProperties(source=contents)
+        )
+        tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
