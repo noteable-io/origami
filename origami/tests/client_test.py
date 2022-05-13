@@ -3,12 +3,12 @@
 import json
 from datetime import datetime
 from uuid import UUID, uuid4
-from boto import config
 
 import pytest
+from boto import config
 from mock import AsyncMock, patch
 
-from ..client import NoteableClient, ClientConfig
+from ..client import ClientConfig, NoteableClient
 from ..types.rtu import (
     AuthenticationReply,
     FileSubscribeActionReplyData,

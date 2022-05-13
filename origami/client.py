@@ -1,8 +1,8 @@
 """The file holding client connection patterns for noteable APIs."""
 
-import os
 import asyncio
 import functools
+import os
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
@@ -96,13 +96,20 @@ class NoteableClient(httpx.AsyncClient):
         return wrapper
 
     def __init__(
-        self, api_token: Optional[Union[str, Token]]=None, config: Optional[ClientConfig]=None, follow_redirects=True, **kwargs
+        self,
+        api_token: Optional[Union[str, Token]] = None,
+        config: Optional[ClientConfig] = None,
+        follow_redirects=True,
+        **kwargs,
     ):
         """Initializes httpx client and sets up state trackers for async comms."""
         if not config:
             settings = ClientSettings()
             if not os.path.exists(settings.auth0_config_path):
-                logger.error(f"No config object passed in and no config file found at {settings.auth0_config_path}, using default empty config")
+                logger.error(
+                    f"No config object passed in and no config file found at {settings.auth0_config_path}"
+                    ", using default empty config"
+                )
                 config = ClientConfig()
             else:
                 config = ClientConfig.parse_file(settings.auth0_config_path)
@@ -142,6 +149,7 @@ class NoteableClient(httpx.AsyncClient):
         return f"wss://{self.config.domain}/gate/api/v1/rtu"
 
     def get_token(self):
+        """Fetches and api token using oauth client config settings."""
         url = f"https://{self.config.auth0_domain}/oauth/token"
         data = {
             "client_id": self.config.client_id,
@@ -155,7 +163,7 @@ class NoteableClient(httpx.AsyncClient):
         token = resp.json()["access_token"]
         token_data = jwt.decode(token, options={"verify_signature": False})
         return Token(access_token=token, **token_data)
-    
+
     async def __aenter__(self):
         """
         Creates an async test client for the Noteable App.
