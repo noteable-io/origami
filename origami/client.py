@@ -16,11 +16,11 @@ from pydantic import BaseModel, ValidationError
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
-    CallbackTracker,
     AuthenticationReply,
     AuthenticationRequest,
     AuthenticationRequestData,
-    FileSubscribeActionReplyData,
+    CallbackTracker,
+    FileSubscribeReplySchema,
     FileSubscribeRequestSchema,
     GenericRTUMessage,
     GenericRTUReply,
@@ -28,8 +28,8 @@ from .types.rtu import (
     GenericRTURequest,
     GenericRTURequestSchema,
     MinimalErrorSchema,
-    PingRequest,
     PingReply,
+    PingRequest,
     RTUEventCallable,
     TopicActionReplyData,
 )
@@ -225,7 +225,6 @@ class NoteableClient(httpx.AsyncClient):
             await asyncio.sleep(0)
             try:
                 msg = await self.rtu_socket.recv()
-                logger.error(msg)
                 if not isinstance(msg, str):
                     logger.exception(f"Unexepected message type found on socket: {type(msg)}")
                     continue
@@ -274,39 +273,6 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def subscribe_channel(self, channel, timeout):
-        """A generic pattern for subscribing to topic channels."""
-        is_files_subscription = channel.startswith('files/')
-
-        async def process_subscribe(resp: GenericRTUReplySchema[TopicActionReplyData]):
-            if resp.data.success:
-                self.subscriptions.add(resp.channel)
-            else:
-                logger.error(f"Failed to subscribe to channel topic: {channel}")
-            return resp
-
-        # Register the reply first
-        tracker = self.register_message_callback(process_subscribe, channel, transaction_id=uuid4())
-        req = GenericRTURequest(
-            transaction_id=tracker.transaction_id, event="subscribe_request", channel=channel
-        )
-        if is_files_subscription:
-            tracker.response_schema = GenericRTUReplySchema[FileSubscribeActionReplyData]
-            # TODO: set last_transaction_id from file payload
-            req = FileSubscribeRequestSchema(
-                transaction_id=tracker.transaction_id,
-                event="subscribe_request",
-                channel=channel,
-                data={},
-            )
-            # TODO: automate this
-            # req.data.from_version_id = "381063aa-b18b-4533-8fb1-ae602b85fd7b"
-
-        await self.send_rtu_request(req)
-        return await asyncio.wait_for(tracker.next_trigger, timeout)
-
-    @_requires_ws_context
-    @_default_timeout_arg
     async def authenticate(self, timeout):
         """Authenticates a fresh websocket as the given user."""
 
@@ -350,12 +316,49 @@ class NoteableClient(httpx.AsyncClient):
         assert pong_resp.channel == "system"
         return pong_resp
 
+    def _gen_subscription_request(self, channel):
+        async def process_subscribe(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if resp.data.success:
+                self.subscriptions.add(resp.channel)
+            else:
+                logger.error(f"Failed to subscribe to channel topic: {channel}")
+            return resp
+
+        # Register the reply first
+        tracker = self.register_message_callback(
+            process_subscribe,
+            channel,
+            transaction_id=uuid4(),
+            response_schema=GenericRTUReplySchema[TopicActionReplyData],
+        )
+        req = GenericRTURequest(
+            transaction_id=tracker.transaction_id, event="subscribe_request", channel=channel
+        )
+        return req, tracker
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def subscribe_channel(self, channel, timeout):
+        """A generic pattern for subscribing to topic channels."""
+        req, tracker = self._gen_subscription_request(channel)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
     def files_channel(self, file_id):
         """Helper to build file channel names from file ids"""
         return f"files/{file_id}"
 
     @_requires_ws_context
-    async def subscribe_file(self, file_id):
+    @_default_timeout_arg
+    async def subscribe_file(self, file_id, timeout):
         """Subscribes to a specified file for updates about it's contents."""
+        channel = self.files_channel(file_id)
+        req, tracker = self._gen_subscription_request(channel)
+        tracker.response_schema = FileSubscribeReplySchema
+        # TODO: set last_transaction_id from file payload
         # TODO: Handle delta catchups?
-        return await self.subscribe_channel(self.files_channel(file_id))
+        # TODO: automate this
+        # req.data.from_version_id = "381063aa-b18b-4533-8fb1-ae602b85fd7b"
+
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)

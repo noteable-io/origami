@@ -3,14 +3,14 @@
 import enum
 from asyncio import Future
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, TypeVar, Union, Type
+from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
 from .deltas import CellStateMessage, FileDelta
-from .models import User, NoteableAPIModel
+from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
 
@@ -213,6 +213,9 @@ class FileSubscribeRequestSchema(GenericRTURequestSchema[FileSubscribeRequestDat
     def last_transaction_id(self) -> Optional[UUID]:
         """Helper to extract last_transaction_id"""
         return getattr(self.data, "last_transaction_id")
+
+
+FileSubscribeReplySchema = GenericRTUReplySchema[FileSubscribeActionReplyData]
 
 
 class OutputMessage(BaseModel):
