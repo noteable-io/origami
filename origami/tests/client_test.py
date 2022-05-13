@@ -3,11 +3,12 @@
 import json
 from datetime import datetime
 from uuid import UUID, uuid4
+from boto import config
 
 import pytest
 from mock import AsyncMock, patch
 
-from ..client import NoteableClient
+from ..client import NoteableClient, ClientConfig
 from ..types.rtu import (
     AuthenticationReply,
     FileSubscribeActionReplyData,
@@ -47,8 +48,13 @@ async def connect_mock_with_auth_patched(connect_mock):
 
 
 @pytest.fixture
-async def client(connect_mock_with_auth_patched):
-    async with NoteableClient('fake-token') as client:
+def client_config():
+    return ClientConfig(domain="fake-domain")
+
+
+@pytest.fixture
+async def client(connect_mock_with_auth_patched, client_config):
+    async with NoteableClient('fake-token', config=client_config) as client:
         yield client
 
 

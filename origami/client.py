@@ -1,17 +1,20 @@
 """The file holding client connection patterns for noteable APIs."""
 
+import os
 import asyncio
 import functools
 from asyncio import Future
 from collections import defaultdict
+from datetime import datetime
 from logging import getLogger
 from queue import LifoQueue
-from typing import Optional, Type
+from typing import Optional, Type, Union
 from uuid import UUID, uuid4
 
 import httpx
+import jwt
 import websockets
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -21,7 +24,6 @@ from .types.rtu import (
     AuthenticationRequestData,
     CallbackTracker,
     FileSubscribeReplySchema,
-    FileSubscribeRequestSchema,
     GenericRTUMessage,
     GenericRTUReply,
     GenericRTUReplySchema,
@@ -37,12 +39,39 @@ from .types.rtu import (
 logger = getLogger('noteable.origami.client')
 
 
+class ClientSettings(BaseSettings):
+    """A pydantic settings object for loading settings into dataclasses"""
+
+    auth0_config_path: str = "./auth0_config"
+
+
+class ClientConfig(BaseModel):
+    """Captures the client's config object for user settable arguments"""
+
+    client_id: str = ""
+    client_secret: str = ""
+    domain: str = "app.noteable.world"
+    backend_path: str = "gate/api/"
+    auth0_domain: str = ""
+    audience: str = "https://apps.noteable.world/gate"
+    ws_timeout: int = 5
+
+
+class Token(BaseModel):
+    """Represents an oauth token response object"""
+
+    access_token: str
+    iss: str = None
+    sub: str = None
+    aud: str = None
+    iat: datetime = None
+    exp: datetime = None
+    azp: str = None
+    gty: str = None
+
+
 class NoteableClient(httpx.AsyncClient):
     """An async client class that provides interfaces for communicating with Noteable APIs."""
-
-    NOTEABLE_DOMAIN = "app.noteable.world"
-    NOTEABLE_BETA_URL = f"https://{NOTEABLE_DOMAIN}/"
-    NOTEABLE_WEBSOCKET_URI = f"wss://{NOTEABLE_DOMAIN}/gate/api/v1/rtu"
 
     def _requires_ws_context(func):
         """A helper for checking if one is in a websocket context or not"""
@@ -61,23 +90,32 @@ class NoteableClient(httpx.AsyncClient):
         @functools.wraps(func)
         async def wrapper(self, *args, timeout=None, **kwargs):
             if timeout is None:
-                timeout = self.ws_timeout
+                timeout = self.config.ws_timeout
             return await func(self, *args, timeout=timeout, **kwargs)
 
         return wrapper
 
     def __init__(
-        self, api_token, domain=NOTEABLE_DOMAIN, follow_redirects=True, ws_timeout=5, **kwargs
+        self, api_token: Optional[Union[str, Token]]=None, config: Optional[ClientConfig]=None, follow_redirects=True, **kwargs
     ):
         """Initializes httpx client and sets up state trackers for async comms."""
-        self.domain = domain
-        self.token = api_token
-        self.ws_timeout = ws_timeout
+        if not config:
+            settings = ClientSettings()
+            if not os.path.exists(settings.auth0_config_path):
+                logger.error(f"No config object passed in and no config file found at {settings.auth0_config_path}, using default empty config")
+                config = ClientConfig()
+            else:
+                config = ClientConfig.parse_file(settings.auth0_config_path)
+        self.config = config
+
+        self.token = api_token or self.get_token()
+        if isinstance(self.token, str):
+            self.token = Token(access_token=api_token)
         self.rtu_socket = None
         self.process_task_loop = None
 
         headers = kwargs.pop('headers', {})
-        headers['Authorization'] = f"Bearer {api_token}"
+        headers['Authorization'] = f"Bearer {self.token.access_token}"
         # assert 'Authorization' in headers, "No API token present for authenticating requests"
 
         # Set of active channel subscriptions (always subscribed to system messages)
@@ -87,7 +125,7 @@ class NoteableClient(httpx.AsyncClient):
         # channel -> transaction_id -> callback_queue
         self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         super().__init__(
-            base_url=f"https://{domain}/",
+            base_url=f"https://{self.config.domain}/",
             follow_redirects=follow_redirects,
             headers=headers,
             **kwargs,
@@ -96,13 +134,28 @@ class NoteableClient(httpx.AsyncClient):
     @property
     def origin(self):
         """Formates the domain in an origin string for websocket headers."""
-        return f'https://{self.domain}'
+        return f'https://{self.config.domain}'
 
     @property
     def ws_uri(self):
         """Formats the websocket URI out of the notable domain name."""
-        return f"wss://{self.domain}/gate/api/v1/rtu"
+        return f"wss://{self.config.domain}/gate/api/v1/rtu"
 
+    def get_token(self):
+        url = f"https://{self.config.auth0_domain}/oauth/token"
+        data = {
+            "client_id": self.config.client_id,
+            "client_secret": self.config.client_secret,
+            "audience": self.config.audience,
+            "grant_type": "client_credentials",
+        }
+        resp = httpx.post(url, json=data)
+        resp.raise_for_status()
+
+        token = resp.json()["access_token"]
+        token_data = jwt.decode(token, options={"verify_signature": False})
+        return Token(access_token=token, **token_data)
+    
     async def __aenter__(self):
         """
         Creates an async test client for the Noteable App.
@@ -273,7 +326,7 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def authenticate(self, timeout):
+    async def authenticate(self, timeout: float):
         """Authenticates a fresh websocket as the given user."""
 
         async def authorized(resp: AuthenticationReply):
@@ -286,9 +339,8 @@ class NoteableClient(httpx.AsyncClient):
 
         # Register the transaction reply after sending the request
         req = AuthenticationRequest(
-            transaction_id=uuid4(), data=AuthenticationRequestData(token=self.token)
+            transaction_id=uuid4(), data=AuthenticationRequestData(token=self.token.access_token)
         )
-        req.data = AuthenticationRequestData(token=self.token)
         tracker = AuthenticationReply.register_callback(self, req, authorized)
         await self.send_rtu_request(req)
         # Give it timeout seconds to respond
@@ -296,7 +348,7 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def ping_rtu(self, timeout):
+    async def ping_rtu(self, timeout: float):
         """Sends a ping request to the RTU websocket and confirms the response is valid."""
 
         async def pong(resp: GenericRTUReply):
@@ -316,7 +368,7 @@ class NoteableClient(httpx.AsyncClient):
         assert pong_resp.channel == "system"
         return pong_resp
 
-    def _gen_subscription_request(self, channel):
+    def _gen_subscription_request(self, channel: str):
         async def process_subscribe(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if resp.data.success:
                 self.subscriptions.add(resp.channel)
@@ -338,7 +390,7 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def subscribe_channel(self, channel, timeout):
+    async def subscribe_channel(self, channel: str, timeout: float):
         """A generic pattern for subscribing to topic channels."""
         req, tracker = self._gen_subscription_request(channel)
         await self.send_rtu_request(req)
@@ -350,15 +402,16 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def subscribe_file(self, file_id, timeout):
+    async def subscribe_file(self, file_id: UUID, timeout: float):
         """Subscribes to a specified file for updates about it's contents."""
         channel = self.files_channel(file_id)
         req, tracker = self._gen_subscription_request(channel)
         tracker.response_schema = FileSubscribeReplySchema
-        # TODO: set last_transaction_id from file payload
-        # TODO: Handle delta catchups?
         # TODO: automate this
         # req.data.from_version_id = "381063aa-b18b-4533-8fb1-ae602b85fd7b"
+        # TODO: set last_transaction_id from file payload
+        req.data = {}
+        # TODO: Handle delta catchups?
 
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)

@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ignore noteable app settings
+.noteable_config
+
+# Skip test jupyter files for now
+.ipynb
+.ipynb_checkpoints
