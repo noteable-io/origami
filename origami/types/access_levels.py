@@ -1,3 +1,5 @@
+"""This file captures the models involved with permissions and action authorization within Noteable."""
+
 import enum
 from typing import List, Optional, Set
 
@@ -6,6 +8,10 @@ from pydantic import BaseModel
 
 @enum.unique
 class AccessLevel(enum.Enum):
+    """Defines the access levels on a resource that control what actions are allowed.
+    Note that this is different than Visibility which captures discoverability.
+    """
+
     owner = "role:owner"
     contributor = "role:contributor"
     commenter = "role:commenter"
@@ -15,15 +21,20 @@ class AccessLevel(enum.Enum):
 
     @classmethod
     def values(cls) -> Set[str]:
+        """Returns all the avilable enum values possible"""
         return {x.value for x in cls}
 
     @classmethod
     def parse(cls, value) -> Optional["AccessLevel"]:
+        """Converts the value to a typed enumeration if possible"""
         return AccessLevel(value) if value else None
 
 
 class AccessLevelAction(enum.Enum):
+    """Defines the enumeration of actions available on Noteable."""
+
     def _generate_next_value_(name, start, count, last_values):
+        """Helper to enable initialization / enumeration"""
         return name
 
     # general actions
@@ -76,14 +87,14 @@ class AccessLevelAction(enum.Enum):
     view_datasource = enum.auto()
     delete_datasource = enum.auto()
 
-    def __lt__(self, other):
-        if self.__class__ is not other.__class__:
-            return NotImplemented
-        return self.value < other.value
-
 
 class Visibility(enum.Enum):
+    """Defines the visibility of a file for discoverability purposes.
+    Note that this is different than AccessLevel which captures permissions.
+    """
+
     def _generate_next_value_(name, start, count, last_values):
+        """Helper to enable initialization / enumeration"""
         return name
 
     # the open visibility allows any logged-in user with access
@@ -94,10 +105,13 @@ class Visibility(enum.Enum):
     private = enum.auto()
 
     def is_private(self) -> bool:
+        """Helper for asking if a resource is private or not."""
         return self is Visibility.private
 
 
 class ResourceData(BaseModel):
+    """The representation of a resouce's available actions."""
+
     # actions_allowed are all the possible actions for this object that are allowed
     actions_allowed: List[AccessLevelAction]
     # actions_denied are all the possible actions for this object that are not allowed
@@ -106,4 +120,5 @@ class ResourceData(BaseModel):
     effective_access_level: Optional[AccessLevel] = None
 
     def can(self, action: AccessLevelAction) -> bool:
+        """Mirroring the cancan library, the method returns if an action is allowed on the resource."""
         return action in self.actions_allowed

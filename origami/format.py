@@ -1,3 +1,5 @@
+"""A utility file for helping with nbformat interface and conversions"""
+
 import nbformat
 import orjson
 import structlog
@@ -6,6 +8,7 @@ logger = structlog.get_logger('noteable.' + __name__)
 
 
 def ensure_notebook_latest_schema(nb: nbformat.NotebookNode) -> None:
+    """Converts if needed a notebook to the v4 formatted JSON file schema"""
     if nb.get("nbformat", -1) < nbformat.v4.nbbase.nbformat:
         try:
             nbformat.convert(nb, to_version=nbformat.v4.nbbase.nbformat)
@@ -19,6 +22,7 @@ def ensure_notebook_latest_schema(nb: nbformat.NotebookNode) -> None:
 
 
 def validate_against_latest_schema(notebook: nbformat.NotebookNode) -> None:
+    """Confirms that the notebook is a v4 formatted JSON file"""
     try:
         nbformat.validate(
             notebook,
@@ -53,7 +57,8 @@ def nbformat_fix_and_validate(notebook: nbformat.NotebookNode) -> None:
 
 def nbformat_writes_fast(notebook: nbformat.NotebookNode) -> bytes:
     """Uses orjson.dumps instead of json.dumps, without any indents.
-    Still validates the incoming notebook with nbformat.validate."""
+    Still validates the incoming notebook with nbformat.validate.
+    """
     nbformat_fix_and_validate(notebook)
     return orjson.dumps(notebook)
 

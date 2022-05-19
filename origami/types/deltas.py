@@ -222,6 +222,7 @@ class FileDeltaBase(FileDeltaRequestBase[DeltaPropertiesT], Generic[DeltaPropert
     """The base type model for FileDeltas reponses. This is used to provide specializations
     for particular message types without needing to specify these common fields.
     """
+
     file_id: uuid.UUID
     created_by_id: Optional[uuid.UUID]
 
@@ -275,7 +276,7 @@ CellContentsDelta = FileDeltaBase[V2CellContentsProperties]
 
 
 class CellContentsDeltaRequestData(FileDeltaRequestBase[V2CellContentsProperties]):
-    """The type representing a content change in a document."""
+    """The type representing a content change in a document"""
 
     @root_validator
     def validate_properties(cls, values):
@@ -298,3 +299,9 @@ class CellContentsDeltaRequestData(FileDeltaRequestBase[V2CellContentsProperties
             ]
         ), f"invalid properties for delta_action {delta_action}"
         return values
+
+
+class CellContentsDeltaRequestDataWrapper(BaseModel):
+    """Wrapper for delta contents which is always inside a 'delta' key"""
+
+    delta: CellContentsDeltaRequestData

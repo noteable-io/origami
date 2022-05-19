@@ -6,39 +6,32 @@ import os
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
-from logging import getLogger
 from queue import LifoQueue
 from typing import Optional, Type, Union
 from uuid import UUID, uuid4
 
 import httpx
 import jwt
-from more_itertools import last
 import structlog
 import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
+from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
 from .types.files import File
-from .types.deltas import (
-    V2CellContentsProperties,
-    FileDeltaAction,
-    FileDeltaType,
-)
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
     AuthenticationReply,
     AuthenticationRequest,
     AuthenticationRequestData,
-    CellContentsDeltaReply,
     CallbackTracker,
+    CellContentsDeltaReply,
     FileSubscribeReplySchema,
     GenericRTUMessage,
     GenericRTUReply,
     GenericRTUReplySchema,
     GenericRTURequest,
     GenericRTURequestSchema,
-    CellContentsDeltaRequest,
     MinimalErrorSchema,
     PingReply,
     PingRequest,
@@ -166,8 +159,9 @@ class NoteableClient(httpx.AsyncClient):
 
     def get_token(self):
         """Fetches and api token using oauth client config settings.
-        
-        WARNING: This is a blocking call so we can call it from init, but it should be quick"""
+
+        WARNING: This is a blocking call so we can call it from init, but it should be quick
+        """
         url = f"https://{self.config.auth0_domain}/oauth/token"
         data = {
             "client_id": self.config.client_id,
@@ -183,6 +177,7 @@ class NoteableClient(httpx.AsyncClient):
         return Token(access_token=token, **token_data)
 
     async def get_file(self, file_id) -> File:
+        """Fetches a notebook file via the Noteable REST API as a File model (see files.py)"""
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
         resp.raise_for_status()
         logger.error(resp.content)
@@ -434,7 +429,9 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def subscribe_file(self, file: Union[UUID, File], timeout: float, from_version_id: Optional[UUID]=None):
+    async def subscribe_file(
+        self, file: Union[UUID, File], timeout: float, from_version_id: Optional[UUID] = None
+    ):
         """Subscribes to a specified file for updates about it's contents."""
         if isinstance(file, File):
             # TODO: Write test for file
@@ -462,6 +459,7 @@ class NoteableClient(httpx.AsyncClient):
     @_requires_ws_context
     @_default_timeout_arg
     async def replace_cell_contents(self, file: File, cell_id: UUID, contents: str, timeout: float):
+        """Sends an RTU request to replace the contents of a particular cell in a particular file."""
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
                 logger.error(f"Failed to submit cell change for file {file.id} -> {cell_id}")
@@ -472,7 +470,7 @@ class NoteableClient(httpx.AsyncClient):
             FileDeltaType.cell_contents,
             FileDeltaAction.replace,
             cell_id,
-            properties=V2CellContentsProperties(source=contents)
+            properties=V2CellContentsProperties(source=contents),
         )
         tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
         await self.send_rtu_request(req)

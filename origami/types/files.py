@@ -1,24 +1,29 @@
+"""This file serves to capture the File abstraction and its model interaction with Noteable."""
+
 from __future__ import annotations
 
 import json
-from uuid import UUID, uuid4
 from base64 import decodebytes
 from datetime import datetime
 from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID, uuid4
 
-import orjson
 import nbformat
+import orjson
 import structlog
 from pydantic import BaseModel, Field, root_validator, validator
 
-
-from ..format import nbformat_writes_fast
 from ..pathing import ensure_relative_path
-from .access_levels import AccessLevel, Visibility, ResourceData
+from .access_levels import AccessLevel, ResourceData, Visibility
+from .deltas import (
+    CellContentsDeltaRequestData,
+    CellContentsDeltaRequestDataWrapper,
+    FileDeltaAction,
+    FileDeltaType,
+    V2CellContentsProperties,
+)
 from .models import Resource
-from .deltas import CellContentsDeltaRequestData, FileDeltaType, FileDeltaAction, V2CellContentsProperties
-
 
 JSON = Dict[str, Any]
 logger = structlog.get_logger(__name__)
@@ -28,12 +33,14 @@ class FileType(str, Enum):
     """The types of objects found along a path and have first-class noteable support."""
 
     def _generate_next_value_(name, start, count, last_values):
+        """Helper to enable initialization / enumeration"""
         return name
 
     file = auto()
     notebook = auto()
 
     def file_format(self) -> FileFormat:
+        """Helper to define file format based on file type"""
         if self is FileType.notebook:
             return FileFormat.json
         return FileFormat.text
@@ -50,6 +57,7 @@ class FileFormat(Enum):
     base64 = auto()
 
     def to_mimetype(self) -> Optional[str]:
+        """Mimetype generator based on file type"""
         if self is FileFormat.json:
             return "application/json"
         elif self is FileFormat.text:
@@ -67,6 +75,12 @@ class FileFormat(Enum):
 
 
 class JupyterServerResponse(BaseModel):
+    """This is a model converting the Noteable responses into standard Jupyter REST responses for
+    file contents. This is really helpful in making a bridge to other OSS libraries that speak
+    Jupyter syntax since the ipynbs are valid Jupyter files, but with some permissions and metadata
+    above the standard abstraction.
+    """
+
     name: str
     path: str
     type: FileType
@@ -80,6 +94,7 @@ class JupyterServerResponse(BaseModel):
     message: Optional[str] = None
 
     def as_format(self, format: Optional[FileFormat]) -> "JupyterServerResponse":
+        """Formats the file contents into text, json, or base64 as is often used in Jupyter servers."""
         if format is FileFormat.text and self.format is not FileFormat.text:
             if self.format is FileFormat.base64 and self.content:
                 try:
@@ -117,10 +132,12 @@ class JupyterServerResponse(BaseModel):
         return self
 
 
-JupyterServerResponse.update_forward_refs()
+JupyterServerResponse.update_forward_refs()  # Gets type refs correctly updated
 
 
 class UserAndRole(BaseModel):
+    """The model holding a user and their given permissions for a resource"""
+
     user_id: UUID
     access_level: AccessLevel
     # role is deprecated in favor of access_level
@@ -128,21 +145,25 @@ class UserAndRole(BaseModel):
 
     @root_validator()
     def validate_model(cls, values):
+        """Ensures that the role and access_level match for backwards compatibility"""
         values["role"] = values["access_level"]
         return values
 
-    class Config:
-        orm_mode = True
-
 
 class FileRBACModel(BaseModel):
+    """The representation of an role based permission specification for any resource in Noteable"""
+
     rbac: Optional[ResourceData]
     users: Optional[List[UserAndRole]]
     # A dictionary returning the number of users granted access on the parent resources, if any
     parent_resource_users: Dict[Resource, int] = Field(default_factory=dict)
 
 
-class V1File(FileRBACModel):
+class File(FileRBACModel):
+    """The file model representing a Notebook file in Noteable. This is the response model from get
+    requests against the REST APIs and holds details needed for coordinated real time updates.
+    """
+
     id: UUID
     created_at: datetime
     updated_at: datetime
@@ -173,18 +194,21 @@ class V1File(FileRBACModel):
     # Only set when fetching the file through /api/v1/files/:id route.
     presigned_download_url: Optional[str] = None
 
-    @validator("kernel_filesystem_path", pre=True, always=True)
-    def validate_kernel_filesystem_path(cls, kernel_filesystem_path, values):
-        return values["path"]
-
-class File(V1File):
     content: Optional[Union[str, JSON]] = None
     content_truncated: bool = False
 
+    @validator("kernel_filesystem_path", pre=True, always=True)
+    def validate_kernel_filesystem_path(cls, kernel_filesystem_path, values):
+        """Confirms that there is a path subkey for the 'kernel_filesystem_path'"""
+        return values["path"]
+
     @property
     def json_contents(self):
+        """Loads contents into JSON dicts if it's still in a string representation."""
         if self.content is None:
-            raise ValueError("Contents of file object are missing, cannot request values served from contents")
+            raise ValueError(
+                "Contents of file object are missing, cannot request values served from contents"
+            )
         elif isinstance(self.content, str):
             return orjson.loads(self.content)
         else:
@@ -218,25 +242,37 @@ class File(V1File):
         """Helper to build file channel names from file ids"""
         return f"files/{self.id}"
 
-    def generate_delta_request(self, transaction_id: UUID, delta_type: FileDeltaType, delta_action: FileDeltaAction, cell_id: Optional[UUID], properties: V2CellContentsProperties):
+    def generate_delta_request(
+        self,
+        transaction_id: UUID,
+        delta_type: FileDeltaType,
+        delta_action: FileDeltaAction,
+        cell_id: Optional[UUID],
+        properties: V2CellContentsProperties,
+    ):
+        """A helper method for creating delta requests from a File object.
+        This handles mapping the channel and cell ids to the appropriate requst fields.
+        """
         # Avoid circular import
         from .rtu import CellContentsDeltaRequest
 
-        data = CellContentsDeltaRequestData(
-            id=uuid4(),
-            delta_type=delta_type,
-            delta_action=delta_action,
-            resource_id=cell_id,
-            properties=properties
+        data = CellContentsDeltaRequestDataWrapper(
+            delta=CellContentsDeltaRequestData(
+                id=uuid4(),
+                delta_type=delta_type,
+                delta_action=delta_action,
+                resource_id=cell_id,
+                properties=properties,
+            )
         )
         return CellContentsDeltaRequest(
-            data=data,
-            transaction_id=transaction_id,
-            channel=self.channel
+            data=data, transaction_id=transaction_id, channel=self.channel
         )
 
 
 class FilePutDetails(BaseModel):
+    """The request payload for file replacement requests"""
+
     path: str
     type: FileType
     project_id: UUID
@@ -245,18 +281,22 @@ class FilePutDetails(BaseModel):
 
     @validator("path")
     def validate_path(cls, path, values):
+        """Ensure that paths are relative for project placement"""
         return ensure_relative_path(path)
 
     @validator("format")
     def format_type_pinning(cls, format, values):
+        """Ensure that notebook files are JSON format"""
         if values["type"] is FileType.notebook and format is not FileFormat.json:
             raise ValueError("Notebooks only support JSON format")
         return format
 
     @validator("content")
     def validate_content(cls, content, values):
+        """Confirms that the notebook content is of the proper shape and type.
+        This method also ensures that contents has at least one cell if no content is initially present.
+        """
         # When we do a V1 files API we should do something a little more obvious.
-
         if values['type'] is FileType.notebook:
             if not content:
                 content = nbformat.v4.new_notebook()
@@ -275,6 +315,8 @@ class FilePutDetails(BaseModel):
 
 
 class FilePatch(FilePutDetails):
+    """The request payload for file change requests"""
+
     project_id: Optional[UUID]
     path: Optional[str]
     type: Optional[FileType]
@@ -283,10 +325,14 @@ class FilePatch(FilePutDetails):
 
 
 class PutResult(BaseModel):
+    """The result payload for file push requests"""
+
     file: File
 
 
 class CopyDetails(BaseModel):
+    """The request payload for file copy requests"""
+
     # path is where to copy the file to
     path: str
     # specifying a new project_id allows copying between projects
@@ -299,27 +345,38 @@ class CopyDetails(BaseModel):
 
     @validator("path")
     def validate_path(cls, path, values):
+        """Ensure that paths are relative for project placement"""
         return ensure_relative_path(path)
 
 
 class RenameDetails(BaseModel):
+    """The request payload for file name requests"""
+
     # the new path to rename the file to
     path: str
 
 
 class CopyResult(BaseModel):
+    """The response payload for file copy requests"""
+
     file: File
 
 
-class DeleteResult(BaseModel):
+class FileDeleteResult(BaseModel):
+    """The response payload for file deletion requests"""
+
     file_id: UUID
 
 
 class TreeResult(BaseModel):
+    """The response payload for file tree requests"""
+
     prefix: str
     folder_name: str
     children: List[File]
 
 
 class ExistsResult(BaseModel):
+    """The response payload for existence check requests"""
+
     exists: bool

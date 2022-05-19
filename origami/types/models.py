@@ -47,6 +47,8 @@ class User(NoteableAPIModel):
 
 @enum.unique
 class Resource(enum.Enum):
+    """The abstraction of a noteable resource that can have relations and RBAC assignments against it"""
+
     def _generate_next_value_(name, start, count, last_values):
         return name
 

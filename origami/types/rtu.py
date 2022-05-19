@@ -9,7 +9,11 @@ from uuid import UUID
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
-from .deltas import CellStateMessage, FileDelta, CellContentsDeltaRequestData
+from .deltas import (
+    CellContentsDeltaRequestDataWrapper,
+    CellStateMessage,
+    FileDelta,
+)
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
@@ -431,7 +435,9 @@ class PingRequest(GenericRTURequest):
 PingReply = GenericRTUReply
 
 
-class CellContentsDeltaRequest(GenericRTURequestSchema[CellContentsDeltaRequestData]):
+class CellContentsDeltaRequest(GenericRTURequestSchema[CellContentsDeltaRequestDataWrapper]):
+    """Defubes the delta request for cell contents replacement over the rtu websocket"""
+
     event: str = 'new_delta_request'
 
 
