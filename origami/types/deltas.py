@@ -286,18 +286,27 @@ class CellContentsDeltaRequestData(FileDeltaRequestBase[V2CellContentsProperties
             values.get("properties"),
         )
 
-        assert not all(
-            [
-                properties.patch is not None,
-                properties.source is not None,
-            ]
-        ), "properties must either contain patch or source, not both"
+        if properties:
+            assert not all(
+                [
+                    properties.patch is not None,
+                    properties.source is not None,
+                ]
+            ), "properties must either contain patch or source, not both"
         assert any(
             [
+                delta_action
+                in (
+                    FileDeltaAction.execute,
+                    FileDeltaAction.execute_all,
+                    FileDeltaAction.execute_before,
+                    FileDeltaAction.execute_after,
+                )
+                and properties is None,  # noqa: W503
                 delta_action == FileDeltaAction.replace and properties.source is not None,
                 delta_action == FileDeltaAction.update and properties.patch is not None,
             ]
-        ), f"invalid properties for delta_action {delta_action}"
+        ), f"invalid properties for delta_action {delta_action} with properties: {properties}"
         return values
 
 

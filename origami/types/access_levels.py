@@ -56,7 +56,7 @@ class AccessLevelAction(enum.Enum):
     create_file = enum.auto()
     view_files = enum.auto()
 
-    # File specific actions
+    # NotebookFile specific actions
     modify_file_users = enum.auto()
     publish = enum.auto()
     edit_cell = enum.auto()
@@ -64,13 +64,13 @@ class AccessLevelAction(enum.Enum):
     connect_kernel = enum.auto()
     create_file_version = enum.auto()
 
-    # File comment actions
+    # NotebookFile comment actions
     view_comments = enum.auto()
     create_comment = enum.auto()
     resolve_comments = enum.auto()
     restore_comments = enum.auto()
 
-    # File metadata actions
+    # NotebookFile metadata actions
     update_in_notebook_metadata = enum.auto()
     update_in_cell_metadata = enum.auto()
 

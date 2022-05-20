@@ -9,11 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
-from .deltas import (
-    CellContentsDeltaRequestDataWrapper,
-    CellStateMessage,
-    FileDelta,
-)
+from .deltas import CellContentsDeltaRequestDataWrapper, CellStateMessage, FileDelta
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")

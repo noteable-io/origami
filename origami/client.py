@@ -17,7 +17,7 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
-from .types.files import File
+from .types.files import NotebookFile
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
@@ -57,7 +57,7 @@ class ClientConfig(BaseModel):
     backend_path: str = "gate/api/"
     auth0_domain: str = ""
     audience: str = "https://apps.noteable.world/gate"
-    ws_timeout: int = 5
+    ws_timeout: int = 10
 
 
 class Token(BaseModel):
@@ -176,12 +176,11 @@ class NoteableClient(httpx.AsyncClient):
         token_data = jwt.decode(token, options={"verify_signature": False})
         return Token(access_token=token, **token_data)
 
-    async def get_file(self, file_id) -> File:
-        """Fetches a notebook file via the Noteable REST API as a File model (see files.py)"""
+    async def get_notebook(self, file_id) -> NotebookFile:
+        """Fetches a notebook file via the Noteable REST API as a NotebookFile model (see files.py)"""
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
         resp.raise_for_status()
-        logger.error(resp.content)
-        return File.parse_raw(resp.content)
+        return NotebookFile.parse_raw(resp.content)
 
     async def __aenter__(self):
         """
@@ -430,10 +429,13 @@ class NoteableClient(httpx.AsyncClient):
     @_requires_ws_context
     @_default_timeout_arg
     async def subscribe_file(
-        self, file: Union[UUID, File], timeout: float, from_version_id: Optional[UUID] = None
+        self,
+        file: Union[UUID, NotebookFile],
+        timeout: float,
+        from_version_id: Optional[UUID] = None,
     ):
         """Subscribes to a specified file for updates about it's contents."""
-        if isinstance(file, File):
+        if isinstance(file, NotebookFile):
             # TODO: Write test for file
             file_id = file.id
             # from_delta_id = file.last_save_delta_id
@@ -458,8 +460,11 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    async def replace_cell_contents(self, file: File, cell_id: UUID, contents: str, timeout: float):
+    async def replace_cell_contents(
+        self, file: NotebookFile, cell_id: UUID, contents: str, timeout: float
+    ):
         """Sends an RTU request to replace the contents of a particular cell in a particular file."""
+
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
                 logger.error(f"Failed to submit cell change for file {file.id} -> {cell_id}")
@@ -471,6 +476,46 @@ class NoteableClient(httpx.AsyncClient):
             FileDeltaAction.replace,
             cell_id,
             properties=V2CellContentsProperties(source=contents),
+        )
+        tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def execute(
+        self,
+        file: NotebookFile,
+        cell_id: Optional[UUID],
+        timeout: float,
+        before_id: Optional[UUID] = None,
+        after_id: Optional[UUID] = None,
+    ):
+        """Sends an RTU request to execute a part of the Notebook NotebookFile."""
+        # TODO Confirm that kernel session is live first!
+        assert not before_id or not after_id, 'Cannot define both a before_id and after_id'
+        assert not cell_id or not after_id, 'Cannot define both a cell_id and after_id'
+        assert not cell_id or not before_id, 'Cannot define both a cell_id and before_id'
+
+        action = FileDeltaAction.execute_all
+        if cell_id:
+            action = FileDeltaAction.execute
+        elif before_id:
+            action = FileDeltaAction.execute_before
+            cell_id = before_id
+        elif after_id:
+            action = FileDeltaAction.execute_after
+            cell_id = after_id
+
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                logger.error(
+                    f"Failed to submit execute request for file {file.id} -> {action}({cell_id})"
+                )
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(), FileDeltaType.cell_execute, action, cell_id, None
         )
         tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
         await self.send_rtu_request(req)

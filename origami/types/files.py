@@ -1,4 +1,4 @@
-"""This file serves to capture the File abstraction and its model interaction with Noteable."""
+"""This file serves to capture the NotebookFile abstraction and its model interaction with Noteable."""
 
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ class FileRBACModel(BaseModel):
     parent_resource_users: Dict[Resource, int] = Field(default_factory=dict)
 
 
-class File(FileRBACModel):
+class NotebookFile(FileRBACModel):
     """The file model representing a Notebook file in Noteable. This is the response model from get
     requests against the REST APIs and holds details needed for coordinated real time updates.
     """
@@ -217,7 +217,7 @@ class File(FileRBACModel):
     def as_jupyter_server_response(
         self, as_format: Optional[FileFormat] = None
     ) -> JupyterServerResponse:
-        """Converts the Noteable File API response model into the original
+        """Converts the Noteable NotebookFile API response model into the original
         Jupyter Server response model. Allows us to use our existing proprietary
         data layer, while supporting the existing ecosystem.
 
@@ -248,9 +248,9 @@ class File(FileRBACModel):
         delta_type: FileDeltaType,
         delta_action: FileDeltaAction,
         cell_id: Optional[UUID],
-        properties: V2CellContentsProperties,
+        properties: Optional[V2CellContentsProperties],
     ):
-        """A helper method for creating delta requests from a File object.
+        """A helper method for creating delta requests from a NotebookFile object.
         This handles mapping the channel and cell ids to the appropriate requst fields.
         """
         # Avoid circular import
@@ -327,7 +327,7 @@ class FilePatch(FilePutDetails):
 class PutResult(BaseModel):
     """The result payload for file push requests"""
 
-    file: File
+    file: NotebookFile
 
 
 class CopyDetails(BaseModel):
@@ -359,7 +359,7 @@ class RenameDetails(BaseModel):
 class CopyResult(BaseModel):
     """The response payload for file copy requests"""
 
-    file: File
+    file: NotebookFile
 
 
 class FileDeleteResult(BaseModel):
@@ -373,7 +373,7 @@ class TreeResult(BaseModel):
 
     prefix: str
     folder_name: str
-    children: List[File]
+    children: List[NotebookFile]
 
 
 class ExistsResult(BaseModel):
