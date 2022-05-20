@@ -7,16 +7,17 @@ from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
 from queue import LifoQueue
-from typing import Optional, Type, Union
+from typing import Optional, Type, Union, List
 from uuid import UUID, uuid4
 
 import httpx
 import jwt
 import structlog
 import websockets
-from pydantic import BaseModel, BaseSettings, ValidationError
+from pydantic import BaseModel, BaseSettings, ValidationError, parse_raw_as
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
+from .types.kernels import SessionDetails, SessionRequestDetails, KernelRequestDetails, KernelRequestMetadata
 from .types.files import NotebookFile
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -181,6 +182,26 @@ class NoteableClient(httpx.AsyncClient):
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
+
+    async def get_kernel_session(self, file: Union[UUID, NotebookFile]) -> Optional[SessionDetails]:
+        """Fetches the first notebook kernel session via the Noteable REST API.
+        Returns None if no session is active.
+        """
+        file_id = file if not isinstance(file, NotebookFile) else file.id
+        resp = await self.get(f"{self.api_server_uri}/files/{file_id}/sessions")
+        resp.raise_for_status()
+        logger.error(resp.content)
+        sessions = parse_raw_as(List[SessionDetails], resp.content)
+        if sessions:
+            return sessions[0]
+
+    async def launch_kernel_session(self, file: NotebookFile, kernel_name: Optional[str]=None, hardware_size: Optional[str]=None) -> SessionDetails:
+        """Requests that a notebook session be launched via the Noteable REST API"""
+        session = SessionRequestDetails.generate_file_request(file, kernel_name=kernel_name, hardware_size=hardware_size)
+        # Needs the .dict conversion to avoid thinking it's an object with a syncronous byte stream
+        resp = await self.post(f"{self.api_server_uri}/sessions", data=session.json())
+        resp.raise_for_status()
+        return SessionDetails.parse_raw(resp.content)
 
     async def __aenter__(self):
         """

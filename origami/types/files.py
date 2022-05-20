@@ -202,6 +202,7 @@ class NotebookFile(FileRBACModel):
         """Confirms that there is a path subkey for the 'kernel_filesystem_path'"""
         return values["path"]
 
+    # TODO: Memoize?
     @property
     def json_contents(self):
         """Loads contents into JSON dicts if it's still in a string representation."""
