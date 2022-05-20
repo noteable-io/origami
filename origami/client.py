@@ -3,6 +3,7 @@
 import asyncio
 import functools
 import os
+from time import time
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
@@ -17,7 +18,7 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError, parse_raw_as
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
-from .types.kernels import SessionDetails, SessionRequestDetails, KernelRequestDetails, KernelRequestMetadata
+from .types.kernels import SessionDetails, SessionRequestDetails
 from .types.files import NotebookFile
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -190,7 +191,6 @@ class NoteableClient(httpx.AsyncClient):
         file_id = file if not isinstance(file, NotebookFile) else file.id
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}/sessions")
         resp.raise_for_status()
-        logger.error(resp.content)
         sessions = parse_raw_as(List[SessionDetails], resp.content)
         if sessions:
             return sessions[0]
@@ -202,6 +202,27 @@ class NoteableClient(httpx.AsyncClient):
         resp = await self.post(f"{self.api_server_uri}/sessions", data=session.json())
         resp.raise_for_status()
         return SessionDetails.parse_raw(resp.content)
+
+    async def get_or_launch_ready_kernel_session(self, file: NotebookFile, kernel_name: Optional[str]=None, hardware_size: Optional[str]=None, launch_timeout=60*10, poll_rate: int=3) -> SessionDetails:
+        """Gets or requests that a notebook session be launched via the Noteable REST API.
+        If no session is available one is created, if one is available but not ready it awaits the kernel session
+        being ready for further requests.
+        """
+        timeout = time() + launch_timeout
+        session = await self.get_kernel_session(file)
+        if not session:
+            session = await self.launch_kernel_session(file, kernel_name=kernel_name, hardware_size=hardware_size)
+            while session is not None and not session.kernel.execution_state.kernel_is_ready:
+                if session is None:
+                    raise RuntimeError(f"Kernel session has unexpectantly disappeared. Launch request has halted.")
+                logger.debug(f"Session poll received kernel status: {session.kernel.execution_state}")
+                if session.kernel.execution_state.kernel_is_gone:
+                    raise RuntimeError(f"Kernel has unexpectantly failed to launch and is in {session.kernel.execution_state} state. Launch request has halted.")
+                if time() > timeout:
+                    raise RuntimeError(f"Kernel failed to launch with timeout of {launch_timeout}s. Launch request has halted.")
+                await asyncio.sleep(poll_rate)
+                session = await self.get_kernel_session(file)
+        return session
 
     async def __aenter__(self):
         """
