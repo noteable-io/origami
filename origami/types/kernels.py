@@ -1,3 +1,5 @@
+"""This file captures everything Kernel related in regards to model and helper functions."""
+
 import enum
 from datetime import datetime
 from typing import Optional
@@ -5,11 +7,17 @@ from typing import Optional
 import bitmath
 from pydantic import BaseModel
 
-from .files import NotebookFile, FileType
+from .files import FileType, NotebookFile
 
 
 @enum.unique
 class KernelStatus(enum.Enum):
+    """The kernel status enumeration which captures all states that a kernel can land in.
+
+    This class also provides some helpers for checking if certain actions or responses
+    are available based on the current state.
+    """
+
     # The kernel has been requested in kubernetes and is being scheduled on an
     # available node. If it's unable to be scheduled then the status will never
     # go to scheduled.
@@ -81,6 +89,7 @@ class KernelStatus(enum.Enum):
     FAILED = "failed"
 
     def __str__(self):
+        """Helper for serialization"""
         return self.value
 
     @property
@@ -93,15 +102,9 @@ class KernelStatus(enum.Enum):
             KernelStatus.FORCED_RESTART,
         }
 
-    @property
-    def is_noteable_message(self):
-        return self not in {KernelStatus.IDLE, KernelStatus.BUSY}
-
     @classmethod
     def not_live_statuses(cls):
-        """
-        Statuses of kernel session rows that don't count against a user's current active session count.
-        """
+        """Statuses of kernel session rows that don't count against a user's current active session count"""
         return {
             KernelStatus.FAILED,
             KernelStatus.CULLED,
@@ -115,7 +118,6 @@ class KernelStatus(enum.Enum):
         transition or be in live stat that can take requests without a launch request.
         """
         return self in self.not_live_statuses()
-
 
     @property
     def kernel_is_alive(self):
@@ -139,10 +141,12 @@ class KernelStatus(enum.Enum):
 
     @property
     def include_system_utilization(self) -> bool:
+        """Statuses that also include system resource stats when sent"""
         return self in {KernelStatus.IDLE, KernelStatus.BUSY}
 
     @property
     def include_container_info(self) -> bool:
+        """Indicates states that have container information rather than kernel specific fields"""
         return self in {
             KernelStatus.PULLING_INIT_RESOURCES,
             KernelStatus.PULLING_RUNTIME_RESOURCES,
@@ -150,27 +154,30 @@ class KernelStatus(enum.Enum):
             KernelStatus.RUNTIME_CONTAINER_STARTED,
         }
 
-    @property
-    def needs_info_request(self) -> bool:
-        return self in {KernelStatus.STARTING, KernelStatus.FORCED_RESTART}
-
 
 class NotebookDetails(BaseModel):
+    """Details found in the notebook section of session responses"""
+
     name: str = ''  # Unused in source - always set to '' in jupyter land
     path: str
 
 
 class APIBitmathField(str):
+    """A model representation used to populate a hardware size string that serializes nicely"""
+
     @classmethod
     def __get_validators__(cls):
+        """Overwrite validator fetch to use our method(s)"""
         yield cls.validate
 
     @classmethod
     def __modify_schema__(cls, field_schema):
+        """Helper for docstrings"""
         field_schema.update(examples=["2GB", "16GiB"])
 
     @classmethod
     def validate(cls, v):
+        """Confirm we have a bit-size patterned string"""
         if isinstance(v, bitmath.Bitmath):
             return str(v)
         if not isinstance(v, str):
@@ -189,11 +196,15 @@ class APIHardwareSize(BaseModel):
 
 
 class KernelMetadata(BaseModel):
+    """Wraps any request metadata options available to session kernel calls"""
+
     # The identifier of the HardwareSize, if not specified, the default will be used
     hardware_size: Optional[APIHardwareSize] = None
 
 
 class KernelRequestMetadata(BaseModel):
+    """Wraps any request metadata options available to sessions calls"""
+
     # The identifier of the HardwareSize, if not specified, the default will be used
     hardware_size_identifier: Optional[str] = None
 
@@ -201,6 +212,7 @@ class KernelRequestMetadata(BaseModel):
 class KernelDetails(BaseModel):
     """Represents information about the kernel and its state"""
 
+    # TODO: Cleanup unused fields when this moves to next API verison / RTU
     name: str
     id: Optional[str]
     last_activity: datetime = None
@@ -210,17 +222,22 @@ class KernelDetails(BaseModel):
 
     @property
     def hardware_size_identifier(self) -> Optional[str]:
+        """Helper to pull out the hardware identifier from response metadata"""
         if self.metadata:
             return self.metadata.hardware_size_identifier
         return None
 
+
 class KernelRequestDetails(BaseModel):
-    name:str
-    id: Optional[str]
+    """Encapsulates the kernel details available in a kernel session request."""
+
+    name: str
     metadata: Optional[KernelRequestMetadata] = None
 
 
 class SessionDetails(BaseModel):
+    """Outlines the response payload for a sessions API request."""
+
     id: str = None
     name: str = ''  # Also unused in source - always set to '' in jupyter land
     path: str
@@ -228,19 +245,40 @@ class SessionDetails(BaseModel):
     kernel: KernelDetails
     notebook: NotebookDetails = None
 
+    @property
+    def kernel_channel(self):
+        """Helper to build kernel channel names for subscriptions"""
+        return f"kernels/{self.kernel.id}"
+
 
 class SessionRequestDetails(BaseModel):
+    """Represents a SessionRequest form that asks about a notebook / kernel session."""
+
     name: str = ''  # Also unused in source - always set to '' in jupyter land
     path: str
     type: FileType = FileType.notebook  # Unused in source? Nteract only ever sends "notebook", too
     kernel: KernelRequestDetails
 
     @classmethod
-    def generate_file_request(cls, file: NotebookFile, kernel_name: Optional[str]=None, hardware_size: Optional[str]=None) -> 'SessionRequestDetails':
+    def generate_file_request(
+        cls,
+        file: NotebookFile,
+        kernel_name: Optional[str] = None,
+        hardware_size: Optional[str] = None,
+    ) -> 'SessionRequestDetails':
+        """Generates a session request for a given file as a helper method.
+
+        The function sets the hardware size and kernel info from the file and
+        places it in the corresponding request fields.
+        """
         metadata = file.json_contents['metadata']
         kernel_name = kernel_name or metadata.get('kernel_info', {}).get('name', 'python3')
         hardware_size = hardware_size or metadata.get('selected_hardware_size')
-        request_metadata = KernelRequestMetadata(hardware_size_identifier=hardware_size) if hardware_size else None
-        return SessionRequestDetails(path=f'{file.project_id}/{file.filename}', type='notebook', kernel=KernelRequestDetails(
-            name=kernel_name, metadata=request_metadata
-        ))
+        request_metadata = (
+            KernelRequestMetadata(hardware_size_identifier=hardware_size) if hardware_size else None
+        )
+        return SessionRequestDetails(
+            path=f'{file.project_id}/{file.filename}',
+            type='notebook',
+            kernel=KernelRequestDetails(name=kernel_name, metadata=request_metadata),
+        )

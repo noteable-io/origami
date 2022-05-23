@@ -3,12 +3,12 @@
 import asyncio
 import functools
 import os
-from time import time
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
 from queue import LifoQueue
-from typing import Optional, Type, Union, List
+from time import time
+from typing import List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import httpx
@@ -18,8 +18,8 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError, parse_raw_as
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
-from .types.kernels import SessionDetails, SessionRequestDetails
 from .types.files import NotebookFile
+from .types.kernels import SessionDetails, SessionRequestDetails
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
@@ -28,6 +28,7 @@ from .types.rtu import (
     AuthenticationRequestData,
     CallbackTracker,
     CellContentsDeltaReply,
+    CellStateMessageReply,
     FileSubscribeReplySchema,
     GenericRTUMessage,
     GenericRTUReply,
@@ -42,6 +43,12 @@ from .types.rtu import (
 )
 
 logger = structlog.get_logger('noteable.' + __name__)
+
+
+class SkipCallback(ValueError):
+    """Used to allow a message handler to gracefully skip processing and not be counted as a match"""
+
+    pass
 
 
 class ClientSettings(BaseSettings):
@@ -83,7 +90,7 @@ class NoteableClient(httpx.AsyncClient):
 
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            if self.rtu_socket is None:
+            if not self.in_context:
                 raise ValueError("Cannot send RTU request outside of a context manager scope.")
             return await func(self, *args, **kwargs)
 
@@ -119,6 +126,7 @@ class NoteableClient(httpx.AsyncClient):
             else:
                 config = ClientConfig.parse_file(settings.auth0_config_path)
         self.config = config
+        self.file_session_cache = {}
 
         self.user = None
         self.token = api_token or self.get_token()
@@ -193,17 +201,34 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         sessions = parse_raw_as(List[SessionDetails], resp.content)
         if sessions:
+            self.file_session_cache[file.id] = sessions[0]
             return sessions[0]
 
-    async def launch_kernel_session(self, file: NotebookFile, kernel_name: Optional[str]=None, hardware_size: Optional[str]=None) -> SessionDetails:
+    async def launch_kernel_session(
+        self,
+        file: NotebookFile,
+        kernel_name: Optional[str] = None,
+        hardware_size: Optional[str] = None,
+    ) -> SessionDetails:
         """Requests that a notebook session be launched via the Noteable REST API"""
-        session = SessionRequestDetails.generate_file_request(file, kernel_name=kernel_name, hardware_size=hardware_size)
+        request = SessionRequestDetails.generate_file_request(
+            file, kernel_name=kernel_name, hardware_size=hardware_size
+        )
         # Needs the .dict conversion to avoid thinking it's an object with a syncronous byte stream
-        resp = await self.post(f"{self.api_server_uri}/sessions", data=session.json())
+        resp = await self.post(f"{self.api_server_uri}/sessions", data=request.json())
         resp.raise_for_status()
-        return SessionDetails.parse_raw(resp.content)
+        session = SessionDetails.parse_raw(resp.content)
+        self.file_session_cache[file.id] = session
+        return session
 
-    async def get_or_launch_ready_kernel_session(self, file: NotebookFile, kernel_name: Optional[str]=None, hardware_size: Optional[str]=None, launch_timeout=60*10, poll_rate: int=3) -> SessionDetails:
+    async def get_or_launch_ready_kernel_session(
+        self,
+        file: NotebookFile,
+        kernel_name: Optional[str] = None,
+        hardware_size: Optional[str] = None,
+        launch_timeout=60 * 10,
+        poll_rate: int = 3,
+    ) -> SessionDetails:
         """Gets or requests that a notebook session be launched via the Noteable REST API.
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
@@ -211,18 +236,53 @@ class NoteableClient(httpx.AsyncClient):
         timeout = time() + launch_timeout
         session = await self.get_kernel_session(file)
         if not session:
-            session = await self.launch_kernel_session(file, kernel_name=kernel_name, hardware_size=hardware_size)
+            session = await self.launch_kernel_session(
+                file, kernel_name=kernel_name, hardware_size=hardware_size
+            )
             while session is not None and not session.kernel.execution_state.kernel_is_ready:
                 if session is None:
-                    raise RuntimeError(f"Kernel session has unexpectantly disappeared. Launch request has halted.")
-                logger.debug(f"Session poll received kernel status: {session.kernel.execution_state}")
+                    raise RuntimeError(
+                        "Kernel session has unexpectantly disappeared. Launch request has halted."
+                    )
+                logger.debug(
+                    f"Session poll received kernel status: {session.kernel.execution_state}"
+                )
                 if session.kernel.execution_state.kernel_is_gone:
-                    raise RuntimeError(f"Kernel has unexpectantly failed to launch and is in {session.kernel.execution_state} state. Launch request has halted.")
+                    raise RuntimeError(
+                        f"Kernel has unexpectantly failed to launch and is in {session.kernel.execution_state} state. "
+                        "Launch request has halted."
+                    )
                 if time() > timeout:
-                    raise RuntimeError(f"Kernel failed to launch with timeout of {launch_timeout}s. Launch request has halted.")
+                    raise RuntimeError(
+                        f"Kernel failed to launch with timeout of {launch_timeout}s. Launch request has halted."
+                    )
                 await asyncio.sleep(poll_rate)
                 session = await self.get_kernel_session(file)
         return session
+
+    async def delete_kernel_session(
+        self, file: Union[UUID, NotebookFile]
+    ) -> Optional[SessionDetails]:
+        """Fetches the first notebook kernel session via the Noteable REST API.
+        Returns None if no session is active.
+        """
+        file_id = file if not isinstance(file, NotebookFile) else file.id
+        if file_id in self.file_session_cache:
+            session = self.file_session_cache[file_id]
+        else:
+            session = self.get_kernel_session(file)
+        if session is None:
+            return  # Already shutdown
+
+        resp = await self.delete(f"{self.api_server_uri}/sessions/{session.id}")
+        resp.raise_for_status()
+        if file_id in self.file_session_cache:
+            del self.file_session_cache[file.id]
+
+    @property
+    def in_context(self):
+        """Indicates if the client is within an async context generation loop or not."""
+        return self.rtu_socket is not None
 
     async def __aenter__(self):
         """
@@ -295,7 +355,8 @@ class NoteableClient(httpx.AsyncClient):
 
         async def wrapped_callable(resp: GenericRTUMessage):
             """Wrapps the user callback function to handle message parsing and future triggers."""
-            tracker.count += 1
+            skipped = False
+            failed = False
             if resp.event in RTU_ERROR_HARD_MESSAGE_TYPES:
                 resp = MinimalErrorSchema.parse_obj(resp)
                 msg = resp.data['message']
@@ -310,20 +371,27 @@ class NoteableClient(httpx.AsyncClient):
 
                 try:
                     result = await callable(resp)
+                    tracker.count += 1
+                    tracker.next_trigger.set_result(result)
+                except SkipCallback:
+                    # Allow for skipping if conditions were not met
+                    skipped = True
                 except Exception as e:
                     logger.exception("Registered callback failed")
+                    failed = True
+                    tracker.count += 1
                     tracker.next_trigger.set_exception(e)
-                else:
-                    tracker.next_trigger.set_result(result)
-            if not tracker.once:
+            if skipped or not tracker.once:
                 # Reset the next trigger promise
-                tracker.next_trigger = Future()
+                if not skipped:
+                    tracker.next_trigger = Future()
                 if tracker.transaction_id:
                     self.transaction_callbacks[tracker.channel][tracker.transaction_id].put_nowait(
                         tracker
                     )
                 else:
                     self.type_callbacks[tracker.channel][tracker.message_type].put_nowait(tracker)
+            return not skipped and not failed
 
         # Replace the callable with a function that will manage itself and it's future awaitable
         tracker.callable = wrapped_callable
@@ -367,16 +435,30 @@ class NoteableClient(httpx.AsyncClient):
                 logger.debug(f"Received websocket message: {res}")
                 # Check for transaction id responses
                 id_lifo = self.transaction_callbacks[channel][res.transaction_id]
+                # Pull all the trackers out initially so that re-registering trackers don't get rerun this cycle
+                trackers = []
                 while not id_lifo.empty():
-                    tracker: CallbackTracker = id_lifo.get(block=False)
+                    trackers.append(id_lifo.get(block=False))
+                for tracker in trackers:
                     logger.debug(f"Found callable for {channel}/{tracker.transaction_id}")
-                    await tracker.callable(res)
-                type_lifo = self.type_callbacks[channel][event]
+                    processed = await tracker.callable(res)
+                    logger.debug(
+                        f"Callable for {channel}/{tracker.transaction_id} was a "
+                        f"{'successful' if processed else 'failed'} match"
+                    )
+
                 # Check for general event callbacks
+                type_lifo = self.type_callbacks[channel][event]
+                # Pull all the trackers out initially so that re-registering trackers don't get rerun this cycle
+                trackers = []
                 while not type_lifo.empty():
-                    tracker: CallbackTracker = type_lifo.get(block=False)
+                    trackers.append(type_lifo.get(block=False))
+                for tracker in trackers:
                     logger.debug(f"Found callable for {channel}/{event}")
-                    await tracker.callable(res)
+                    processed = await tracker.callable(res)
+                    logger.debug(
+                        f"Callable for {channel}/{event} was a {'successful' if processed else 'failed'} match"
+                    )
 
             except websockets.exceptions.ConnectionClosed:
                 await asyncio.sleep(0)
@@ -529,15 +611,20 @@ class NoteableClient(httpx.AsyncClient):
         self,
         file: NotebookFile,
         cell_id: Optional[UUID],
-        timeout: float,
         before_id: Optional[UUID] = None,
         after_id: Optional[UUID] = None,
+        await_results: bool = True,
+        timeout: float = None,  # Wrapper sets the for us so the type hint is correct
     ):
         """Sends an RTU request to execute a part of the Notebook NotebookFile."""
-        # TODO Confirm that kernel session is live first!
         assert not before_id or not after_id, 'Cannot define both a before_id and after_id'
         assert not cell_id or not after_id, 'Cannot define both a cell_id and after_id'
         assert not cell_id or not before_id, 'Cannot define both a cell_id and before_id'
+
+        session = self.file_session_cache.get(file.id)
+        assert (
+            session and session.kernel.execution_state.kernel_is_alive
+        ), "Cannot execute cell without an active session"
 
         action = FileDeltaAction.execute_all
         if cell_id:
@@ -549,8 +636,11 @@ class NoteableClient(httpx.AsyncClient):
             action = FileDeltaAction.execute_after
             cell_id = after_id
 
-        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
-            if not resp.data.success:
+        async def check_success(resp: GenericRTUReply):
+            if resp.event != 'new_delta_reply':
+                raise SkipCallback("Looking for reply to request, not execution updates")
+            data = resp.data or {}
+            if not data.get('success', False):
                 logger.error(
                     f"Failed to submit execute request for file {file.id} -> {action}({cell_id})"
                 )
@@ -559,6 +649,40 @@ class NoteableClient(httpx.AsyncClient):
         req = file.generate_delta_request(
             uuid4(), FileDeltaType.cell_execute, action, cell_id, None
         )
-        tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
+        tracker = GenericRTUReply.register_callback(self, req, check_success)
+        tracker_future = tracker.next_trigger
+        results_tracker = None
+        results_tracker_future = None
+
+        async def cell_complete_check(resp: CellStateMessageReply):
+            if resp.data.cell_id != cell_id:
+                raise SkipCallback("Not tracked cell")
+            if not resp.data.state.is_terminal_state:
+                raise SkipCallback("Not terminal state")
+            return resp
+
+        if await_results:
+            assert (
+                action == FileDeltaAction.execute
+            ), "Haven't implemented awaiting results for batch execution yet, sorry"
+            # Register this before we start execution so we don't miss fast cells concluding
+            results_tracker = self.register_message_callback(
+                cell_complete_check,
+                session.kernel_channel,
+                "cell_state_update_event",
+                response_schema=CellStateMessageReply,
+            )
+            results_tracker_future = results_tracker.next_trigger
+
         await self.send_rtu_request(req)
-        return await asyncio.wait_for(tracker.next_trigger, timeout)
+        if tracker_future.done():
+            execute_resp = tracker_future.result()
+        else:
+            execute_resp = await asyncio.wait_for(tracker_future, timeout)
+
+        if await_results:
+            if not results_tracker_future.done():
+                # No timeout here because the cell could run for any given amount of time
+                return await results_tracker_future
+        else:
+            return execute_resp

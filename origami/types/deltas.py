@@ -85,6 +85,7 @@ class CellState(enum.Enum):
     """The type representation for cell state within a cell status message."""
 
     def _generate_next_value_(name, start, count, last_values):
+        """Helper for generator enumeration"""
         return name
 
     not_run = enum.auto()
@@ -98,17 +99,26 @@ class CellState(enum.Enum):
     # inspecting kernel messages for a KeyboardInterrupt)
     interrupted = enum.auto()  # example: was running, but interrupted before it could finish.
 
-    @classmethod
     @property
-    def terminal_states(cls) -> "set['CellState']":
+    def is_terminal_state(self):
         """The state of a cell post-execution."""
-        return {
-            cls.not_run,
-            cls.finished_with_no_error,
-            cls.finished_with_error,
-            cls.catastrophic_failure,
-            cls.dequeued,
-            cls.interrupted,
+        return self in {
+            CellState.not_run,
+            CellState.finished_with_no_error,
+            CellState.finished_with_error,
+            CellState.catastrophic_failure,
+            CellState.dequeued,
+            CellState.interrupted,
+        }
+
+    @property
+    def is_error_state(self):
+        """The states in which an unexpected event has occurred during or before execution"""
+        return self in {
+            CellState.finished_with_error,
+            CellState.catastrophic_failure,
+            CellState.dequeued,
+            CellState.interrupted,
         }
 
 

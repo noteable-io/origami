@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
-from .deltas import CellContentsDeltaRequestDataWrapper, CellStateMessage, FileDelta
+from .deltas import CellContentsDeltaRequestDataWrapper, CellState, CellStateMessage, FileDelta
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
@@ -270,6 +270,34 @@ class OutputData(NoteableAPIModel):
     content_metadata: OutputContent
     content: Optional[OutputContent]
     parent_collection_id: UUID
+
+
+class CellStateMessageData(BaseModel):
+    """
+    Pydantic representation of a cell state for front-end
+
+    This is also used as input to CellStateDAO for creation and update
+    """
+
+    kernel_session_id: UUID
+    cell_id: str
+    state: CellState
+    execution_count: Optional[int]
+
+    # This is Gate's (cockroach's "now") time at which it recieved an execution request from geas
+    queued_at: Optional[datetime]
+    # Start and finish times are taken from planar-ally messages (set from planar-ally's time of witnessing)
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    duration_secs: Optional[float]
+
+    queued_by_id: Optional[UUID]  # user ID
+
+
+class CellStateMessageReply(GenericRTUReplySchema[CellStateMessageData]):
+    """Defines a status update message from the rtu websocket"""
+
+    event = 'cell_state_update_event'
 
 
 @enum.unique
