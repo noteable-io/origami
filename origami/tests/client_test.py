@@ -110,7 +110,7 @@ async def test_client_subscribe(connect_mock, client):
 
 
 @pytest.mark.xfail(
-    reason="AttributeError: 'str' object has no attribute 'current_version_id' in client.subscrie_file"
+    reason="AttributeError: 'str' object has no attribute 'current_version_id' in client.subscribe_file"
 )
 @pytest.mark.asyncio
 async def test_file_subscribe(connect_mock, client):
