@@ -47,6 +47,9 @@ websockets = "^10.3"
 flake8-docstrings = "^1.6.0"
 pytest-httpx = "^0.20.0"
 notebook = "^6.4.11"
+boto = "^2.49.0"
+black = {version = "^22.3.0", allow-prereleases = true}
+pytest-asyncio = "^0.18.3"
 
 
 [build-system]
