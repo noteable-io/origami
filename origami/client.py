@@ -244,7 +244,7 @@ class NoteableClient(httpx.AsyncClient):
             async def _kernel_status_callback(msg: GenericRTUMessage):
                 return msg
 
-            rtu_kernel_status_tracker = self.register_message_callback(
+            kernel_status_tracker = self.register_message_callback(
                 _kernel_status_callback,
                 channel=resp.channel,
                 message_type="kernel_status_update_event",
@@ -255,11 +255,13 @@ class NoteableClient(httpx.AsyncClient):
                 file, kernel_name=kernel_name, hardware_size=hardware_size
             )
             while session is not None and not session.kernel.execution_state.kernel_is_alive:
-                trigger = rtu_kernel_status_tracker.next_trigger
-                if trigger.done():
-                    kernel_status_update = trigger.result()
+                kernel_status_tracker_future = kernel_status_tracker.next_trigger
+                if kernel_status_tracker_future.done():
+                    kernel_status_update = kernel_status_tracker_future.result()
                 else:
-                    kernel_status_update = await asyncio.wait_for(trigger, timeout=launch_timeout)
+                    kernel_status_update = await asyncio.wait_for(
+                        kernel_status_tracker_future, timeout=launch_timeout
+                    )
                 session = KernelStatusUpdate.parse_obj(kernel_status_update.data)
         return session
 
