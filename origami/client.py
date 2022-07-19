@@ -36,12 +36,13 @@ from .types.rtu import (
     GenericRTURequest,
     GenericRTURequestSchema,
     KernelStatusUpdate,
+    KernelSubscribeReplyData,
     KernelSubscribeReplySchema,
     MinimalErrorSchema,
     PingReply,
     PingRequest,
     RTUEventCallable,
-    TopicActionReplyData, KernelSubscribeReplyData,
+    TopicActionReplyData,
 )
 
 logger = structlog.get_logger('noteable.' + __name__)
@@ -239,8 +240,10 @@ class NoteableClient(httpx.AsyncClient):
         assert resp.data.success, "Failed to connect to the kernels channel over RTU"
         session = resp.data.kernel_session
         if not session:
+
             async def _kernel_status_callback(msg: GenericRTUMessage):
                 return msg
+
             rtu_kernel_status_tracker = self.register_message_callback(
                 _kernel_status_callback,
                 channel=resp.channel,
