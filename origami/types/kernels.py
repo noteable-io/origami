@@ -135,11 +135,6 @@ class KernelStatus(enum.Enum):
         }
 
     @property
-    def kernel_is_ready(self):
-        """Returns true if the kernel is ready to accept requests."""
-        return self == KernelStatus.IDLE
-
-    @property
     def include_system_utilization(self) -> bool:
         """Statuses that also include system resource stats when sent"""
         return self in {KernelStatus.IDLE, KernelStatus.BUSY}

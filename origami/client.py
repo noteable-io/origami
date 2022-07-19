@@ -35,11 +35,13 @@ from .types.rtu import (
     GenericRTUReplySchema,
     GenericRTURequest,
     GenericRTURequestSchema,
+    KernelStatusUpdate,
+    KernelSubscribeReplySchema,
     MinimalErrorSchema,
     PingReply,
     PingRequest,
     RTUEventCallable,
-    TopicActionReplyData,
+    TopicActionReplyData, KernelSubscribeReplyData,
 )
 
 logger = structlog.get_logger('noteable.' + __name__)
@@ -233,31 +235,29 @@ class NoteableClient(httpx.AsyncClient):
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
         """
-        timeout = time() + launch_timeout
-        session = await self.get_kernel_session(file)
+        resp = await self.subscribe_kernels(file.id)
+        assert resp.data.success, "Failed to connect to the kernels channel over RTU"
+        session = resp.data.kernel_session
         if not session:
+            async def _kernel_status_callback(msg: GenericRTUMessage):
+                return msg
+            rtu_kernel_status_tracker = self.register_message_callback(
+                _kernel_status_callback,
+                channel=resp.channel,
+                message_type="kernel_status_update_event",
+                once=False,
+            )
+
             session = await self.launch_kernel_session(
                 file, kernel_name=kernel_name, hardware_size=hardware_size
             )
-            while session is not None and not session.kernel.execution_state.kernel_is_ready:
-                if session is None:
-                    raise RuntimeError(
-                        "Kernel session has unexpectantly disappeared. Launch request has halted."
-                    )
-                logger.debug(
-                    f"Session poll received kernel status: {session.kernel.execution_state}"
-                )
-                if session.kernel.execution_state.kernel_is_gone:
-                    raise RuntimeError(
-                        f"Kernel has unexpectantly failed to launch and is in {session.kernel.execution_state} state. "
-                        "Launch request has halted."
-                    )
-                if time() > timeout:
-                    raise RuntimeError(
-                        f"Kernel failed to launch with timeout of {launch_timeout}s. Launch request has halted."
-                    )
-                await asyncio.sleep(poll_rate)
-                session = await self.get_kernel_session(file)
+            while session is not None and not session.kernel.execution_state.kernel_is_alive:
+                trigger = rtu_kernel_status_tracker.next_trigger
+                if trigger.done():
+                    kernel_status_update = trigger.result()
+                else:
+                    kernel_status_update = await asyncio.wait_for(trigger, timeout=launch_timeout)
+                session = KernelStatusUpdate.parse_obj(kernel_status_update.data)
         return session
 
     async def delete_kernel_session(
@@ -354,7 +354,7 @@ class NoteableClient(httpx.AsyncClient):
         )
 
         async def wrapped_callable(resp: GenericRTUMessage):
-            """Wrapps the user callback function to handle message parsing and future triggers."""
+            """Wraps the user callback function to handle message parsing and future triggers."""
             skipped = False
             failed = False
             if resp.event in RTU_ERROR_HARD_MESSAGE_TYPES:
@@ -415,7 +415,7 @@ class NoteableClient(httpx.AsyncClient):
             try:
                 msg = await self.rtu_socket.recv()
                 if not isinstance(msg, str):
-                    logger.exception(f"Unexepected message type found on socket: {type(msg)}")
+                    logger.exception(f"Unexpected message type found on socket: {type(msg)}")
                     continue
                 try:
                     res = GenericRTUReply.parse_raw(msg)
@@ -428,7 +428,7 @@ class NoteableClient(httpx.AsyncClient):
                         event = res.event
                     except ValidationError:
                         logger.exception(
-                            f"Unexepected message found on socket: {msg[:30]}{'...' if len(msg) > 30 else ''}"
+                            f"Unexpected message found on socket: {msg[:30]}{'...' if len(msg) > 30 else ''}"
                         )
                         continue
 
@@ -546,9 +546,17 @@ class NoteableClient(httpx.AsyncClient):
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 
-    def files_channel(self, file_id):
+    @staticmethod
+    def files_channel(file_id):
         """Helper to build file channel names from file ids"""
         return f"files/{file_id}"
+
+    @staticmethod
+    def kernels_channel(file_id: UUID, user_id: UUID = None):
+        """Helper to build kernels channel name from file id"""
+        file_id_part = file_id.hex[:20]
+        user_id_part = f"-{user_id.hex[:20]}" if user_id else ""  # For playground mode only
+        return f"kernels/notebook-kernel-{file_id_part}{user_id_part}"[:63]
 
     @_requires_ws_context
     @_default_timeout_arg
@@ -579,6 +587,21 @@ class NoteableClient(httpx.AsyncClient):
         # if from_delta_id:
         #     req.data['from_delta_id'] = from_delta_id
 
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def subscribe_kernels(
+        self,
+        file_id: UUID,
+        timeout: float,
+    ) -> GenericRTUReplySchema[KernelSubscribeReplyData]:
+        """Subscribes to a kernels channel for kernel status updates."""
+        channel = self.kernels_channel(file_id)
+        req, tracker = self._gen_subscription_request(channel)
+        req.data = {"file_id": str(file_id)}
+        tracker.response_schema = KernelSubscribeReplySchema
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 

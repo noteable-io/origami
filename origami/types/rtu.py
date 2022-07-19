@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
 from .deltas import CellContentsDeltaRequestDataWrapper, CellState, CellStateMessage, FileDelta
+from .kernels import KernelDetails
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
@@ -216,6 +217,19 @@ class FileSubscribeRequestSchema(GenericRTURequestSchema[FileSubscribeRequestDat
 
 
 FileSubscribeReplySchema = GenericRTUReplySchema[FileSubscribeActionReplyData]
+
+
+class KernelStatusUpdate(BaseModel):
+    session_id: str
+    kernel: KernelDetails
+    metadata: Optional[dict] = None
+
+
+class KernelSubscribeReplyData(TopicActionReplyData):
+    kernel_session: Optional[KernelStatusUpdate] = None
+
+
+KernelSubscribeReplySchema = GenericRTUReplySchema[KernelSubscribeReplyData]
 
 
 class OutputMessage(BaseModel):
