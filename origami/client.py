@@ -242,16 +242,17 @@ class NoteableClient(httpx.AsyncClient):
             async def _kernel_status_callback(msg):
                 return msg
 
+            session = await self.launch_kernel_session(
+                file, kernel_name=kernel_name, hardware_size=hardware_size
+            )
+
             kernel_status_tracker = self.register_message_callback(
                 _kernel_status_callback,
-                channel=resp.channel,
+                channel=session.kernel_channel,
                 message_type="kernel_status_update_event",
                 once=False,
             )
 
-            session = await self.launch_kernel_session(
-                file, kernel_name=kernel_name, hardware_size=hardware_size
-            )
             while session is not None and not session.kernel.execution_state.kernel_is_alive:
                 kernel_status_tracker_future = kernel_status_tracker.next_trigger
                 if kernel_status_tracker_future.done():
