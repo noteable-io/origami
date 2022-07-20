@@ -241,8 +241,7 @@ class NoteableClient(httpx.AsyncClient):
         session = resp.data.kernel_session
         if not session:
 
-            async def _kernel_status_callback(msg: GenericRTUMessage):
-                return msg
+            async def _kernel_status_callback(msg): return msg
 
             kernel_status_tracker = self.register_message_callback(
                 _kernel_status_callback,
