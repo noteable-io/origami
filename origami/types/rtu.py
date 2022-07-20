@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
 from .deltas import CellContentsDeltaRequestDataWrapper, CellState, CellStateMessage, FileDelta
+from .kernels import KernelDetails
 from .models import NoteableAPIModel, User
 
 RTUData = TypeVar("RTUData")
@@ -176,6 +177,12 @@ class TopicActionReplyData(BaseModel):
     success: bool
 
 
+class KernelStatusUpdate(BaseModel):
+    session_id: str
+    kernel: KernelDetails
+    metadata: Optional[dict] = None
+
+
 class FileSubscriptionUser(BaseModel):
     """The type information for users actively viewing a shared subscription (e.g. file)"""
 
@@ -192,6 +199,8 @@ class FileSubscribeActionReplyData(TopicActionReplyData):
     user_subscriptions: List[FileSubscriptionUser]
     deltas_to_apply: List[FileDelta] = Field(default_factory=list)
     cell_states: List[CellStateMessage] = Field(default_factory=list)
+    kernel_session: Optional[KernelStatusUpdate] = None
+    latest_delta_id: Optional[UUID]
 
 
 class FileSubscribeRequestData(BaseModel):
