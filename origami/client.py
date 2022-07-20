@@ -235,7 +235,7 @@ class NoteableClient(httpx.AsyncClient):
         being ready for further requests.
         """
         resp = await self.subscribe_file(file)
-        assert resp.data.success, "Failed to connect to the kernels channel over RTU"
+        assert resp.data.success, "Failed to connect to the files channel over RTU"
         session = resp.data.kernel_session
         if not session:
 
