@@ -36,8 +36,6 @@ from .types.rtu import (
     GenericRTURequest,
     GenericRTURequestSchema,
     KernelStatusUpdate,
-    KernelSubscribeReplyData,
-    KernelSubscribeReplySchema,
     MinimalErrorSchema,
     PingReply,
     PingRequest,
@@ -236,7 +234,7 @@ class NoteableClient(httpx.AsyncClient):
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
         """
-        resp = await self.subscribe_kernels(file.id)
+        resp = await self.subscribe_file(file)
         assert resp.data.success, "Failed to connect to the kernels channel over RTU"
         session = resp.data.kernel_session
         if not session:
@@ -556,13 +554,6 @@ class NoteableClient(httpx.AsyncClient):
         """Helper to build file channel names from file ids"""
         return f"files/{file_id}"
 
-    @staticmethod
-    def kernels_channel(file_id: UUID, user_id: UUID = None):
-        """Helper to build kernels channel name from file id"""
-        file_id_part = file_id.hex[:20]
-        user_id_part = f"-{user_id.hex[:20]}" if user_id else ""  # For playground mode only
-        return f"kernels/notebook-kernel-{file_id_part}{user_id_part}"[:63]
-
     @_requires_ws_context
     @_default_timeout_arg
     async def subscribe_file(
@@ -592,21 +583,6 @@ class NoteableClient(httpx.AsyncClient):
         # if from_delta_id:
         #     req.data['from_delta_id'] = from_delta_id
 
-        await self.send_rtu_request(req)
-        return await asyncio.wait_for(tracker.next_trigger, timeout)
-
-    @_requires_ws_context
-    @_default_timeout_arg
-    async def subscribe_kernels(
-        self,
-        file_id: UUID,
-        timeout: float,
-    ) -> GenericRTUReplySchema[KernelSubscribeReplyData]:
-        """Subscribes to a kernels channel for kernel status updates."""
-        channel = self.kernels_channel(file_id)
-        req, tracker = self._gen_subscription_request(channel)
-        req.data = {"file_id": str(file_id)}
-        tracker.response_schema = KernelSubscribeReplySchema
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 

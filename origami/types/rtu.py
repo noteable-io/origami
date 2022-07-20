@@ -177,6 +177,12 @@ class TopicActionReplyData(BaseModel):
     success: bool
 
 
+class KernelStatusUpdate(BaseModel):
+    session_id: str
+    kernel: KernelDetails
+    metadata: Optional[dict] = None
+
+
 class FileSubscriptionUser(BaseModel):
     """The type information for users actively viewing a shared subscription (e.g. file)"""
 
@@ -193,6 +199,8 @@ class FileSubscribeActionReplyData(TopicActionReplyData):
     user_subscriptions: List[FileSubscriptionUser]
     deltas_to_apply: List[FileDelta] = Field(default_factory=list)
     cell_states: List[CellStateMessage] = Field(default_factory=list)
+    kernel_session: Optional[KernelStatusUpdate] = None
+    latest_delta_id: Optional[UUID]
 
 
 class FileSubscribeRequestData(BaseModel):
@@ -217,19 +225,6 @@ class FileSubscribeRequestSchema(GenericRTURequestSchema[FileSubscribeRequestDat
 
 
 FileSubscribeReplySchema = GenericRTUReplySchema[FileSubscribeActionReplyData]
-
-
-class KernelStatusUpdate(BaseModel):
-    session_id: str
-    kernel: KernelDetails
-    metadata: Optional[dict] = None
-
-
-class KernelSubscribeReplyData(TopicActionReplyData):
-    kernel_session: Optional[KernelStatusUpdate] = None
-
-
-KernelSubscribeReplySchema = GenericRTUReplySchema[KernelSubscribeReplyData]
 
 
 class OutputMessage(BaseModel):

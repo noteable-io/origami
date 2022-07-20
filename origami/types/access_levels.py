@@ -103,6 +103,9 @@ class Visibility(enum.Enum):
     # the private visibility is the default visibility and does not
     # grant any implicit access level for a resource
     private = enum.auto()
+    # public visibility allows any user to access the resource.
+    # this includes anonymous users or users without a Noteable account.
+    public = enum.auto()
 
     def is_private(self) -> bool:
         """Helper for asking if a resource is private or not."""
