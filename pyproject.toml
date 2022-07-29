@@ -44,7 +44,7 @@ structlog = "^21.5.0"
 websockets = "^10.3"
 
 [tool.poetry.dev-dependencies]
-black = {version = "^22.3.0", allow-prereleases = true}
+black = {version = "^22.6.0", allow-prereleases = true}
 boto = "^2.49.0"
 flake8-docstrings = "^1.6.0"
 notebook = "^6.4.11"
