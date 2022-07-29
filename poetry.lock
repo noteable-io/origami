@@ -614,8 +614,8 @@ nest-asyncio = "*"
 traitlets = ">=5.0.0"
 
 [package.extras]
-sphinx = ["autodoc-traits", "mock", "moto", "myst-parser", "Sphinx (>=1.7)", "sphinx-book-theme"]
-test = ["black", "check-manifest", "flake8", "ipykernel", "ipython (<8.0.0)", "ipywidgets (<8.0.0)", "mypy", "pip (>=18.1)", "pre-commit", "pytest (>=4.1)", "pytest-asyncio", "pytest-cov (>=2.6.1)", "setuptools (>=60.0)", "testpath", "twine (>=1.11.0)", "xmltodict"]
+test = ["xmltodict", "twine (>=1.11.0)", "testpath", "setuptools (>=60.0)", "pytest-cov (>=2.6.1)", "pytest-asyncio", "pytest (>=4.1)", "pre-commit", "pip (>=18.1)", "mypy", "ipywidgets (<8.0.0)", "ipython (<8.0.0)", "ipykernel", "flake8", "check-manifest", "black"]
+sphinx = ["sphinx-book-theme", "Sphinx (>=1.7)", "myst-parser", "moto", "mock", "autodoc-traits"]
 
 [[package]]
 name = "nbconvert"
@@ -792,8 +792,8 @@ optional = false
 python-versions = ">=3.6"
 
 [package.extras]
-dev = ["pre-commit", "tox"]
-testing = ["pytest", "pytest-benchmark"]
+testing = ["pytest-benchmark", "pytest"]
+dev = ["tox", "pre-commit"]
 
 [[package]]
 name = "prometheus-client"
@@ -1047,9 +1047,9 @@ optional = false
 python-versions = "*"
 
 [package.extras]
-nativelib = ["pyobjc-framework-cocoa", "pywin32"]
-objc = ["pyobjc-framework-cocoa"]
 win32 = ["pywin32"]
+objc = ["pyobjc-framework-cocoa"]
+nativelib = ["pywin32", "pyobjc-framework-cocoa"]
 
 [[package]]
 name = "six"
@@ -1097,20 +1097,20 @@ executing = "*"
 pure-eval = "*"
 
 [package.extras]
-tests = ["pytest", "typeguard", "pygments", "littleutils", "cython"]
+tests = ["cython", "littleutils", "pygments", "typeguard", "pytest"]
 
 [[package]]
 name = "structlog"
-version = "21.5.0"
+version = "22.1.0"
 description = "Structured Logging for Python"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.extras]
-dev = ["pre-commit", "rich", "cogapp", "tomli", "coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio", "pytest (>=6.0)", "simplejson", "furo", "sphinx", "sphinx-notfound-page", "sphinxcontrib-mermaid", "twisted"]
-docs = ["furo", "sphinx", "sphinx-notfound-page", "sphinxcontrib-mermaid", "twisted"]
-tests = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio", "pytest (>=6.0)", "simplejson"]
+dev = ["pre-commit", "rich", "cogapp", "tomli", "coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio (>=0.17)", "pytest (>=6.0)", "simplejson", "furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-mermaid", "twisted"]
+docs = ["furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-mermaid", "twisted"]
+tests = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio (>=0.17)", "pytest (>=6.0)", "simplejson"]
 
 [[package]]
 name = "terminado"
@@ -1140,8 +1140,8 @@ python-versions = ">=3.6"
 webencodings = ">=0.4"
 
 [package.extras]
-doc = ["sphinx", "sphinx-rtd-theme"]
-test = ["pytest", "pytest-cov", "pytest-flake8", "pytest-isort", "coverage"]
+test = ["coverage", "pytest-isort", "pytest-flake8", "pytest-cov", "pytest"]
+doc = ["sphinx-rtd-theme", "sphinx"]
 
 [[package]]
 name = "tomli"
@@ -1217,7 +1217,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "6f0a20eae774f53e2c9662bc26fd2bacba7fba2c6b098dfdd53b24a044a7178e"
+content-hash = "4d378282da54a0a2126ddc62b8058dad152665e5782ae3e8dab9586538d8d974"
 
 [metadata.files]
 anyio = [
@@ -1924,8 +1924,8 @@ stack-data = [
     {file = "stack_data-0.2.0.tar.gz", hash = "sha256:45692d41bd633a9503a5195552df22b583caf16f0b27c4e58c98d88c8b648e12"},
 ]
 structlog = [
-    {file = "structlog-21.5.0-py3-none-any.whl", hash = "sha256:fd7922e195262b337da85c2a91c84be94ccab1f8fd1957bd6986f6904e3761c8"},
-    {file = "structlog-21.5.0.tar.gz", hash = "sha256:68c4c29c003714fe86834f347cb107452847ba52414390a7ee583472bde00fc9"},
+    {file = "structlog-22.1.0-py3-none-any.whl", hash = "sha256:760d37b8839bd4fe1747bed7b80f7f4de160078405f4b6a1db9270ccbfce6c30"},
+    {file = "structlog-22.1.0.tar.gz", hash = "sha256:94b29b1d62b2659db154f67a9379ec1770183933d6115d21f21aa25cfc9a7393"},
 ]
 terminado = [
     {file = "terminado-0.15.0-py3-none-any.whl", hash = "sha256:0d5f126fbfdb5887b25ae7d9d07b0d716b1cc0ccaacc71c1f3c14d228e065197"},
