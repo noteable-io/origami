@@ -6,7 +6,7 @@
 [tool.poetry]
 name = "origami"
 version = "0.0.1"
-description = "The noteable API interface"
+description = "The Noteable API interface"
 authors = ["Matt Seal <matt@noteable.io>"]
 maintainers = ["Matt Seal <matt@noteable.io>"]
 license = "BSD-3-Clause"
@@ -35,22 +35,25 @@ url = "https://pypi.org"
 [tool.poetry.dependencies]
 python = "^3.8"
 bitmath = "^1.3.3"
-httpx = "^0.22.0"
+httpx = "^0.23.0"
 jwt = "^1.3.1"
 nbformat = "^5.4.0"
 orjson = "^3.6.8"
 pydantic = "^1.9.1"
-structlog = "^21.5.0"
+structlog = "^22.1.0"
 websockets = "^10.3"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^22.3.0", allow-prereleases = true}
+isort = "^5.10.1"
 boto = "^2.49.0"
 flake8-docstrings = "^1.6.0"
 notebook = "^6.4.11"
+pytest = "^7.1.2"
+pytest-cov = "^3.0.0"
 pytest-asyncio = "^0.19.0"
-pytest-httpx = "^0.20.0"
-
+nox = "^2022.1.7"
+nox-poetry = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
