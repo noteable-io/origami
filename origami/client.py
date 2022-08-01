@@ -7,18 +7,18 @@ from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
 from queue import LifoQueue
-from typing import List, Optional, Type, Union
+from typing import Optional, Type, Union
 from uuid import UUID, uuid4
 
 import httpx
 import jwt
 import structlog
 import websockets
-from pydantic import BaseModel, BaseSettings, ValidationError, parse_raw_as
+from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
 from .types.files import NotebookFile
-from .types.kernels import SessionDetails, SessionRequestDetails
+from .types.kernels import SessionRequestDetails
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
@@ -137,7 +137,6 @@ class NoteableClient(httpx.AsyncClient):
 
         headers = kwargs.pop('headers', {})
         headers['Authorization'] = f"Bearer {self.token.access_token}"
-        # assert 'Authorization' in headers, "No API token present for authenticating requests"
 
         # Set of active channel subscriptions (always subscribed to system messages)
         self.subscriptions = {'system'}
@@ -154,7 +153,7 @@ class NoteableClient(httpx.AsyncClient):
 
     @property
     def origin(self):
-        """Formates the domain in an origin string for websocket headers."""
+        """Formats the domain in an origin string for websocket headers."""
         return f'https://{self.config.domain}'
 
     @property
@@ -192,32 +191,34 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
 
-    async def get_kernel_session(self, file: Union[UUID, NotebookFile]) -> Optional[SessionDetails]:
+    async def get_kernel_session(self, file: Union[UUID, NotebookFile]) -> Optional[KernelStatusUpdate]:
         """Fetches the first notebook kernel session via the Noteable REST API.
         Returns None if no session is active.
         """
         file_id = file if not isinstance(file, NotebookFile) else file.id
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}/sessions")
         resp.raise_for_status()
-        sessions = parse_raw_as(List[SessionDetails], resp.content)
-        if sessions:
-            self.file_session_cache[file.id] = sessions[0]
-            return sessions[0]
+        resp_data = resp.json()
+        if resp_data:
+            session = KernelStatusUpdate(session_id=resp_data[0]["id"], kernel=resp_data[0]["kernel"])
+            self.file_session_cache[file_id] = session
+            return session
 
     async def launch_kernel_session(
         self,
         file: NotebookFile,
         kernel_name: Optional[str] = None,
         hardware_size: Optional[str] = None,
-    ) -> SessionDetails:
+    ) -> KernelStatusUpdate:
         """Requests that a notebook session be launched via the Noteable REST API"""
         request = SessionRequestDetails.generate_file_request(
             file, kernel_name=kernel_name, hardware_size=hardware_size
         )
-        # Needs the .dict conversion to avoid thinking it's an object with a syncronous byte stream
+        # Needs the .dict conversion to avoid thinking it's an object with a synchronous byte stream
         resp = await self.post(f"{self.api_server_uri}/sessions", data=request.json())
         resp.raise_for_status()
-        session = SessionDetails.parse_raw(resp.content)
+        resp_data = resp.json()
+        session = KernelStatusUpdate(session_id=resp_data["id"], kernel=resp_data["kernel"])
         self.file_session_cache[file.id] = session
         return session
 
@@ -227,13 +228,12 @@ class NoteableClient(httpx.AsyncClient):
         kernel_name: Optional[str] = None,
         hardware_size: Optional[str] = None,
         launch_timeout=60 * 10,
-        poll_rate: int = 3,
-    ) -> SessionDetails:
+    ) -> KernelStatusUpdate:
         """Gets or requests that a notebook session be launched via the Noteable REST API.
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
         """
-        resp = await self.subscribe_file(file)
+        resp = await self.subscribe_file(file, timeout=launch_timeout)
         assert resp.data.success, "Failed to connect to the files channel over RTU"
         session = resp.data.kernel_session
         if not session:
@@ -261,11 +261,16 @@ class NoteableClient(httpx.AsyncClient):
                         kernel_status_tracker_future, timeout=launch_timeout
                     )
                 session = KernelStatusUpdate.parse_obj(kernel_status_update.data)
+
+        if session:
+            self.file_session_cache[file.id] = session
+
         return session
 
+    @_default_timeout_arg
     async def delete_kernel_session(
-        self, file: Union[UUID, NotebookFile]
-    ) -> Optional[SessionDetails]:
+        self, file: Union[UUID, NotebookFile], timeout: float = None
+    ):
         """Fetches the first notebook kernel session via the Noteable REST API.
         Returns None if no session is active.
         """
@@ -273,11 +278,10 @@ class NoteableClient(httpx.AsyncClient):
         if file_id in self.file_session_cache:
             session = self.file_session_cache[file_id]
         else:
-            session = self.get_kernel_session(file)
+            session = await self.get_kernel_session(file)
         if session is None:
             return  # Already shutdown
-
-        resp = await self.delete(f"{self.api_server_uri}/sessions/{session.id}")
+        resp = await self.delete(f"{self.api_server_uri}/sessions/{session.session_id}", timeout=timeout)
         resp.raise_for_status()
         if file_id in self.file_session_cache:
             del self.file_session_cache[file.id]
@@ -297,14 +301,11 @@ class NoteableClient(httpx.AsyncClient):
         validate and extract principal-user-id from the token.
         """
         res = await httpx.AsyncClient.__aenter__(self)
-        # Origin is needed or the server request crashes and rejects the connection
+        # Origin is needed, else the server request crashes and rejects the connection
         headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
-        # raise ValueError(self.headers)
         self.rtu_socket = await websockets.connect(self.ws_uri, extra_headers=headers)
         # Loop indefinitely over the incoming websocket messages
         self.process_task_loop = asyncio.create_task(self._process_messages())
-        # Ping to prove we're readily connected (enable if trying to determine if connecting vs auth is a problem)
-        # await self.ping_rtu()
         # Authenticate for more advanced API calls
         await self.authenticate()
         return res
@@ -506,7 +507,7 @@ class NoteableClient(httpx.AsyncClient):
 
         async def pong(resp: GenericRTUReply):
             """The pong response for pinging a webrowser"""
-            logger.debug("Intial ping response received! Websocket is live.")
+            logger.debug("Initial ping response received! Websocket is live.")
             return resp  # Do nothing, we just want to ensure we reach the event
 
         # Register the transaction reply after sending the request
@@ -589,7 +590,7 @@ class NoteableClient(httpx.AsyncClient):
     @_requires_ws_context
     @_default_timeout_arg
     async def replace_cell_contents(
-        self, file: NotebookFile, cell_id: UUID, contents: str, timeout: float
+        self, file: NotebookFile, cell_id: str, contents: str, timeout: float
     ):
         """Sends an RTU request to replace the contents of a particular cell in a particular file."""
 
@@ -614,9 +615,9 @@ class NoteableClient(httpx.AsyncClient):
     async def execute(
         self,
         file: NotebookFile,
-        cell_id: Optional[UUID],
-        before_id: Optional[UUID] = None,
-        after_id: Optional[UUID] = None,
+        cell_id: str = None,
+        before_id: Optional[str] = None,
+        after_id: Optional[str] = None,
         await_results: bool = True,
         timeout: float = None,  # Wrapper sets the for us so the type hint is correct
     ):
@@ -655,7 +656,6 @@ class NoteableClient(httpx.AsyncClient):
         )
         tracker = GenericRTUReply.register_callback(self, req, check_success)
         tracker_future = tracker.next_trigger
-        results_tracker = None
         results_tracker_future = None
 
         async def cell_complete_check(resp: CellStateMessageReply):
