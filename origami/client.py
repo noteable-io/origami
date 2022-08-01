@@ -191,7 +191,9 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
 
-    async def get_kernel_session(self, file: Union[UUID, NotebookFile]) -> Optional[KernelStatusUpdate]:
+    async def get_kernel_session(
+        self, file: Union[UUID, NotebookFile]
+    ) -> Optional[KernelStatusUpdate]:
         """Fetches the first notebook kernel session via the Noteable REST API.
         Returns None if no session is active.
         """
@@ -200,7 +202,9 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         resp_data = resp.json()
         if resp_data:
-            session = KernelStatusUpdate(session_id=resp_data[0]["id"], kernel=resp_data[0]["kernel"])
+            session = KernelStatusUpdate(
+                session_id=resp_data[0]["id"], kernel=resp_data[0]["kernel"]
+            )
             self.file_session_cache[file_id] = session
             return session
 
@@ -268,9 +272,7 @@ class NoteableClient(httpx.AsyncClient):
         return session
 
     @_default_timeout_arg
-    async def delete_kernel_session(
-        self, file: Union[UUID, NotebookFile], timeout: float = None
-    ):
+    async def delete_kernel_session(self, file: Union[UUID, NotebookFile], timeout: float = None):
         """Fetches the first notebook kernel session via the Noteable REST API.
         Returns None if no session is active.
         """
@@ -281,7 +283,9 @@ class NoteableClient(httpx.AsyncClient):
             session = await self.get_kernel_session(file)
         if session is None:
             return  # Already shutdown
-        resp = await self.delete(f"{self.api_server_uri}/sessions/{session.session_id}", timeout=timeout)
+        resp = await self.delete(
+            f"{self.api_server_uri}/sessions/{session.session_id}", timeout=timeout
+        )
         resp.raise_for_status()
         if file_id in self.file_session_cache:
             del self.file_session_cache[file.id]
