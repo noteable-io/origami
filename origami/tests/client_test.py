@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
-from boto import config
+import pytest_asyncio
 
 from ..client import ClientConfig, NoteableClient
 from ..types.rtu import (
@@ -23,13 +23,13 @@ def extract_msg_transaction_id(msg):
     return UUID(json.loads(msg)['transaction_id'])
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def connect_mock():
     with patch('websockets.connect', new_callable=AsyncMock) as connect:
         yield connect
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def connect_mock_with_auth_patched(connect_mock):
     # Initially mock our auth request
     async def auth_reply(msg):
@@ -52,7 +52,7 @@ def client_config():
     return ClientConfig(domain="fake-domain")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(connect_mock_with_auth_patched, client_config):
     async with NoteableClient('fake-token', config=client_config) as client:
         yield client
