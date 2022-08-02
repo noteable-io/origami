@@ -4,8 +4,8 @@
 # character.
 
 [tool.poetry]
-name = "origami"
-version = "0.0.1"
+name = "noteable-origami"
+version = "0.0.2"
 description = "The Noteable API interface"
 authors = ["Matt Seal <matt@noteable.io>"]
 maintainers = ["Matt Seal <matt@noteable.io>"]
@@ -23,14 +23,14 @@ classifiers=[
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
 ]
+packages = [
+    { include = "origami" },
+]
 
 # Manifest.in is subsumed by poetry here
 # https://python-poetry.org/docs/pyproject/#include-and-exclude
 include = []
 
-[[tool.poetry.source]]
-name = "noteable-origami"
-url = "https://pypi.org"
 
 [tool.poetry.dependencies]
 python = "^3.8"
