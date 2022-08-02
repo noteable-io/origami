@@ -9,7 +9,7 @@ A library capturing message patterns and protocols speaking to Noteable's APIs
  </a>
 <img alt="PyPI - License" src="https://img.shields.io/pypi/l/noteable-origami" />
 <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/noteable-origami" />
-<img alt="PyPI" src="https://img.shields.io/pypi/v/magicbell">
+<img alt="PyPI" src="https://img.shields.io/pypi/v/noteable-origami">
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
