@@ -230,22 +230,6 @@ class KernelRequestDetails(BaseModel):
     metadata: Optional[KernelRequestMetadata] = None
 
 
-class SessionDetails(BaseModel):
-    """Outlines the response payload for a sessions API request."""
-
-    id: str = None
-    name: str = ''  # Also unused in source - always set to '' in jupyter land
-    path: str
-    type: FileType = FileType.notebook  # Unused in source? Nteract only ever sends "notebook", too
-    kernel: KernelDetails
-    notebook: NotebookDetails = None
-
-    @property
-    def kernel_channel(self):
-        """Helper to build kernel channel names for subscriptions"""
-        return f"kernels/{self.kernel.id}"
-
-
 class SessionRequestDetails(BaseModel):
     """Represents a SessionRequest form that asks about a notebook / kernel session."""
 

@@ -182,6 +182,11 @@ class KernelStatusUpdate(BaseModel):
     kernel: KernelDetails
     metadata: Optional[dict] = None
 
+    @property
+    def kernel_channel(self):
+        """Helper to build kernel channel names for subscriptions"""
+        return f"kernels/{self.kernel.id}"
+
 
 class FileSubscriptionUser(BaseModel):
     """The type information for users actively viewing a shared subscription (e.g. file)"""

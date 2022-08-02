@@ -63,6 +63,7 @@ class AccessLevelAction(enum.Enum):
     execute_cell = enum.auto()
     connect_kernel = enum.auto()
     create_file_version = enum.auto()
+    create_file_sandbox = enum.auto()
 
     # NotebookFile comment actions
     view_comments = enum.auto()
