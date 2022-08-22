@@ -3,6 +3,7 @@
 import asyncio
 import functools
 import os
+import uuid
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
@@ -17,7 +18,7 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
-from .types.files import NotebookFile
+from .types.files import JupyterServerResponse, NotebookFile
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -80,6 +81,11 @@ class Token(BaseModel):
     exp: datetime = None
     azp: str = None
     gty: str = None
+
+
+def chunked(size, source):
+    for i in range(0, len(source), size):
+        yield source[i : i + size]
 
 
 class NoteableClient(httpx.AsyncClient):
@@ -185,11 +191,88 @@ class NoteableClient(httpx.AsyncClient):
         token_data = jwt.decode(token, options={"verify_signature": False})
         return Token(access_token=token, **token_data)
 
-    async def get_notebook(self, file_id) -> NotebookFile:
+    async def get_notebook(self, file_id: Union[uuid.UUID, str]) -> NotebookFile:
         """Fetches a notebook file via the Noteable REST API as a NotebookFile model (see files.py)"""
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
+
+    async def get_jupyter_server_contents(self, file_path: str) -> JupyterServerResponse:
+        """Fetches a notebook file via the Noteable REST API as a JupyterServerResponse model (see files.py)."""
+        resp = await self.get(f"{self.api_server_uri}/contents/{file_path}")
+        resp.raise_for_status()
+        return JupyterServerResponse.parse_raw(resp.content)
+
+    async def update_jupyter_server_contents(
+        self, file_path: str, content: Union[str, bytes, dict], file_type: str = "notebook"
+    ) -> JupyterServerResponse:
+        """Updates a notebook file via the Noteable REST API as a JupyterServerResponse model (see files.py)."""
+        resp = await self.put(
+            f"{self.api_server_uri}/contents/{file_path}",
+            json={
+                "content": content.decode("utf8") if isinstance(content, bytes) else content,
+                "type": file_type,
+            },
+        )
+        resp.raise_for_status()
+        return JupyterServerResponse.parse_raw(resp.content)
+
+    async def create_file_and_upload(
+        self,
+        project_id: Union[uuid.UUID, str],
+        path: str,
+        content: Union[str, bytes],
+        file_type: str = "notebook",
+    ) -> str:
+        """Upload notebook content to a project via the Noteable REST API in a multipart format.
+
+        Returns the file_id of the uploaded file.
+        """
+        content_bytes = content.encode('utf-8') if isinstance(content, str) else content
+
+        # Step 1: Create a new file for the project
+        resp = await self.post(
+            f"{self.api_server_uri}/v1/files",
+            json={
+                "project_id": project_id,
+                "path": path,
+                "type": file_type,
+                "file_size_bytes": len(content_bytes),
+            },
+        )
+        resp.raise_for_status()
+        v1_file = resp.json()
+
+        # Step 2: Upload to S3
+        url_info = v1_file['presigned_upload_url_info']
+        chunk_size = url_info['chunk_size_bytes']
+        upload_id = url_info['upload_id']
+        key = url_info['key']
+        parts = url_info["parts"]
+        uploaded_parts = []
+
+        async with httpx.AsyncClient() as amz_client:
+            for i, chunk in enumerate(chunked(chunk_size, content_bytes)):
+                resp = await amz_client.put(parts[i]['upload_url'], data=chunk)
+                resp.raise_for_status()
+                uploaded_parts.append(
+                    {
+                        "etag": resp.headers['ETag'],
+                        "part_number": i + 1,
+                    }
+                )
+
+        # Step 3: Complete the upload
+        resp = await self.post(
+            f"{self.api_server_uri}/v1/files/{v1_file['id']}/complete-upload",
+            json={
+                "upload_id": upload_id,
+                "key": key,
+                "parts": uploaded_parts,
+            },
+        )
+        resp.raise_for_status()
+        return v1_file["id"]
 
     async def get_kernel_session(
         self, file: Union[UUID, NotebookFile]

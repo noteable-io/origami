@@ -257,7 +257,7 @@ class SessionRequestDetails(BaseModel):
             KernelRequestMetadata(hardware_size_identifier=hardware_size) if hardware_size else None
         )
         return SessionRequestDetails(
-            path=f'{file.project_id}/{file.filename}',
-            type='notebook',
+            path=f'{file.project_id}/{file.path}',
+            type=FileType.notebook,
             kernel=KernelRequestDetails(name=kernel_name, metadata=request_metadata),
         )
