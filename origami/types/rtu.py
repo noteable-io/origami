@@ -9,7 +9,13 @@ from uuid import UUID
 from pydantic import BaseModel, Field, root_validator, validator
 from pydantic.generics import GenericModel
 
-from .deltas import CellContentsDeltaRequestDataWrapper, CellState, CellStateMessage, FileDelta
+from .deltas import (
+    CellContentsDeltaRequestDataWrapper,
+    CellState,
+    CellStateMessage,
+    FileDelta,
+    NewFileDeltaData,
+)
 from .kernels import KernelDetails
 from .models import NoteableAPIModel, User
 
@@ -479,7 +485,9 @@ class CellContentsDeltaRequest(GenericRTURequestSchema[CellContentsDeltaRequestD
     event: str = 'new_delta_request'
 
 
-CellContentsDeltaReply = GenericRTUReplySchema[TopicActionReplyData]
+FileDeltaReply = GenericRTUReplySchema[TopicActionReplyData]
+
+FileDeltaRequestSchema = GenericRTURequestSchema[NewFileDeltaData]
 
 
 RTU_MESSAGE_TYPES = {
@@ -493,7 +501,8 @@ RTU_MESSAGE_TYPES = {
     # "echo_request",
     # "files_synced_event",
     # "new_delta_event",
-    # "new_delta_request",
+    "new_delta_request": GenericRTURequestSchema[FileDeltaRequestSchema],
+    "new_delta_reply": FileDeltaReply,
     "ping_reply": PingReply,
     "ping_request": PingRequest,
     # "remove_user_file_subscription_event",
