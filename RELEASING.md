@@ -8,7 +8,7 @@ git checkout main
 git pull
 
 # Create the release branch
-git checkout -b release/vX.Y.Z
+git checkout -b release/X.Y.Z
 ```
 
 ## 2. Update the changelog
@@ -37,7 +37,7 @@ bump2version [major|minor|patch]
 
 ```shell
 # Push the release branch
-git push -u origin release/vX.Y.Z
+git push -u origin release/X.Y.Z
 ```
 
 ### 5. Create pull request and merge
@@ -52,10 +52,10 @@ git checkout main
 git pull
 
 # Tag the release
-git tag -s vX.Y.Z -m "Release vX.Y.Z"
+git tag -s X.Y.Z -m "Release X.Y.Z"
 
 # Push the tag
-git push origin vX.Y.Z
+git push origin X.Y.Z
 ```
 
 ### 7. Update the release in GitHub
