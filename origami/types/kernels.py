@@ -253,11 +253,9 @@ class SessionRequestDetails(BaseModel):
         metadata = file.json_contents['metadata']
         kernel_name = kernel_name or metadata.get('kernel_info', {}).get('name', 'python3')
         hardware_size = hardware_size or metadata.get('selected_hardware_size')
-        request_metadata = (
-            KernelRequestMetadata(hardware_size_identifier=hardware_size) if hardware_size else None
-        )
+        request_metadata = KernelRequestMetadata(hardware_size_identifier=hardware_size)
         return SessionRequestDetails(
-            path=f'{file.project_id}/{file.filename}',
-            type='notebook',
+            path=f'{file.project_id}/{file.path}',
+            type=FileType.notebook,
             kernel=KernelRequestDetails(name=kernel_name, metadata=request_metadata),
         )
