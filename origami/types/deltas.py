@@ -324,3 +324,24 @@ class CellContentsDeltaRequestDataWrapper(BaseModel):
     """Wrapper for delta contents which is always inside a 'delta' key"""
 
     delta: CellContentsDeltaRequestData
+
+
+class FileDeltaRequest(BaseModel):
+    id: uuid.UUID
+    parent_delta_id: Optional[uuid.UUID]
+    delta_type: FileDeltaType
+    delta_action: FileDeltaAction
+    resource_id: str = NULL_RESOURCE_SENTINEL
+    properties: Optional[Dict]
+
+    def to_delta(self, file_id: uuid.UUID, created_by_id: uuid.UUID):
+        obj = self.dict()
+        obj["file_id"] = file_id
+        obj["created_by_id"] = created_by_id
+        delta = FileDelta.construct(**obj)
+        return delta.validate_data()
+
+
+class NewFileDeltaData(BaseModel):
+    delta: FileDeltaRequest
+    output_collection_id_to_copy: Optional[uuid.UUID] = None

@@ -7,7 +7,7 @@ from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
 from queue import LifoQueue
-from typing import Optional, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import httpx
@@ -16,7 +16,7 @@ import structlog
 import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
-from .types.deltas import FileDeltaAction, FileDeltaType, V2CellContentsProperties
+from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
 from .types.files import NotebookFile
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
@@ -26,8 +26,8 @@ from .types.rtu import (
     AuthenticationRequest,
     AuthenticationRequestData,
     CallbackTracker,
-    CellContentsDeltaReply,
     CellStateMessageReply,
+    FileDeltaReply,
     FileSubscribeReplySchema,
     GenericRTUMessage,
     GenericRTUReply,
@@ -48,6 +48,10 @@ logger = structlog.get_logger('noteable.' + __name__)
 class SkipCallback(ValueError):
     """Used to allow a message handler to gracefully skip processing and not be counted as a match"""
 
+    pass
+
+
+class RTUError(RuntimeError):
     pass
 
 
@@ -600,7 +604,7 @@ class NoteableClient(httpx.AsyncClient):
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
-                logger.error(f"Failed to submit cell change for file {file.id} -> {cell_id}")
+                raise RTUError(f"Failed to submit cell change for file {file.id} -> {cell_id}")
             return resp
 
         req = file.generate_delta_request(
@@ -610,7 +614,51 @@ class NoteableClient(httpx.AsyncClient):
             cell_id,
             properties=V2CellContentsProperties(source=contents),
         )
-        tracker = CellContentsDeltaReply.register_callback(self, req, check_success)
+        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def delete_cell(self, file: NotebookFile, cell_id: str, timeout: float):
+        """Sends an RTU request to delete a particular cell in a particular file."""
+
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                raise RTUError(f"Failed to submit cell delete for file {file.id} -> {cell_id}")
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(),
+            FileDeltaType.nb_cells,
+            FileDeltaAction.delete,
+            cell_id,
+            properties=NBCellProperties(id=cell_id),
+        )
+        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def add_cell(
+        self, file: NotebookFile, cell: Dict[str, Any], after_id: str, timeout: float
+    ):
+        """Sends an RTU request to add a cell"""
+
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                raise RTUError(f"Failed to add cell for file {file.id}")
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(),
+            FileDeltaType.nb_cells,
+            FileDeltaAction.add,
+            cell['id'],
+            properties=NBCellProperties(id=cell['id'], cell=cell, after_id=after_id),
+        )
+        tracker = FileDeltaReply.register_callback(self, req, check_success)
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 

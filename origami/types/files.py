@@ -16,13 +16,7 @@ from pydantic import BaseModel, Field, root_validator, validator
 
 from ..pathing import ensure_relative_path
 from .access_levels import AccessLevel, ResourceData, Visibility
-from .deltas import (
-    CellContentsDeltaRequestData,
-    CellContentsDeltaRequestDataWrapper,
-    FileDeltaAction,
-    FileDeltaType,
-    V2CellContentsProperties,
-)
+from .deltas import FileDeltaAction, FileDeltaRequestBase, FileDeltaType, NewFileDeltaData
 from .models import Resource
 
 JSON = Dict[str, Any]
@@ -248,17 +242,17 @@ class NotebookFile(FileRBACModel):
         transaction_id: UUID,
         delta_type: FileDeltaType,
         delta_action: FileDeltaAction,
-        cell_id: Optional[UUID],
-        properties: Optional[V2CellContentsProperties],
+        cell_id: Optional[str],
+        properties: Any = None,
     ):
         """A helper method for creating delta requests from a NotebookFile object.
         This handles mapping the channel and cell ids to the appropriate requst fields.
         """
         # Avoid circular import
-        from .rtu import CellContentsDeltaRequest
+        from .rtu import FileDeltaRequestSchema
 
-        data = CellContentsDeltaRequestDataWrapper(
-            delta=CellContentsDeltaRequestData(
+        data = NewFileDeltaData(
+            delta=FileDeltaRequestBase(
                 id=uuid4(),
                 delta_type=delta_type,
                 delta_action=delta_action,
@@ -266,8 +260,11 @@ class NotebookFile(FileRBACModel):
                 properties=properties,
             )
         )
-        return CellContentsDeltaRequest(
-            data=data, transaction_id=transaction_id, channel=self.channel
+        return FileDeltaRequestSchema(
+            data=data,
+            transaction_id=transaction_id,
+            channel=self.channel,
+            event="new_delta_request",
         )
 
 
