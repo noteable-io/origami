@@ -40,9 +40,11 @@ jobs:
         uses: daisylb/setup-nox@v2.1.0
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v7
+        with:
+          poetry-version: 1.2.0
       - name: Install dependencies
         run: |
-          poetry export -f requirements.txt --without-hashes --dev > /tmp/requirements.txt
-          pip install --constraint=/tmp/requirements.txt nox_poetry
+          poetry export -f requirements.txt --extras "all" --without-hashes --with dev --output requirements.txt
+          pip install -r requirements.txt
       - name: Run lint
         run: nox -s lint
