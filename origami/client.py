@@ -51,6 +51,10 @@ class SkipCallback(ValueError):
     pass
 
 
+class RTUError(RuntimeError):
+    pass
+
+
 class ClientSettings(BaseSettings):
     """A pydantic settings object for loading settings into dataclasses"""
 
@@ -600,7 +604,7 @@ class NoteableClient(httpx.AsyncClient):
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
-                logger.error(f"Failed to submit cell change for file {file.id} -> {cell_id}")
+                raise RTUError(f"Failed to submit cell change for file {file.id} -> {cell_id}")
             return resp
 
         req = file.generate_delta_request(
@@ -621,7 +625,7 @@ class NoteableClient(httpx.AsyncClient):
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
-                logger.error(f"Failed to submit cell delete for file {file.id} -> {cell_id}")
+                raise RTUError(f"Failed to submit cell delete for file {file.id} -> {cell_id}")
             return resp
 
         req = file.generate_delta_request(
@@ -644,7 +648,7 @@ class NoteableClient(httpx.AsyncClient):
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
-                logger.error(f"Failed to add cell for file {file.id}")
+                raise RTUError(f"Failed to add cell for file {file.id}")
             return resp
 
         req = file.generate_delta_request(
