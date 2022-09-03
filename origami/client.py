@@ -532,6 +532,11 @@ class NoteableClient(httpx.AsyncClient):
 
     def _gen_subscription_request(self, channel: str):
         async def process_subscribe(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            # This is needed in case other events from the same transaction are received
+            # before the subscribe_reply (for e.g. update_user_file_subscription_event)
+            if resp.event != "subscribe_reply":
+                raise SkipCallback("This callback only processes subscribe_reply")
+
             if resp.data.success:
                 self.subscriptions.add(resp.channel)
             else:
@@ -543,7 +548,6 @@ class NoteableClient(httpx.AsyncClient):
             process_subscribe,
             channel,
             transaction_id=uuid4(),
-            response_schema=GenericRTUReplySchema[TopicActionReplyData],
         )
         req = GenericRTURequest(
             transaction_id=tracker.transaction_id, event="subscribe_request", channel=channel
