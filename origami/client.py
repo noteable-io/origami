@@ -536,7 +536,7 @@ class NoteableClient(httpx.AsyncClient):
             # before the subscribe_reply (for e.g. update_user_file_subscription_event)
             if resp.event != "subscribe_reply":
                 raise SkipCallback("This callback only processes subscribe_reply")
-            GenericRTUReplySchema[TopicActionReplyData].parse_obj(resp)
+            resp = GenericRTUReplySchema[TopicActionReplyData].parse_obj(resp)
             if resp.data.success:
                 self.subscriptions.add(resp.channel)
             else:
