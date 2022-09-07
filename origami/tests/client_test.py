@@ -1,6 +1,7 @@
 """Tests for the async noteable client calls."""
 
 import json
+import os
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
@@ -67,6 +68,19 @@ async def test_client_websocket_context(connect_mock_with_auth_patched):
         connect_mock_with_auth_patched.return_value.close.assert_not_called()
     connect_mock_with_auth_patched.return_value.recv.assert_called()
     connect_mock_with_auth_patched.return_value.close.assert_called_once()
+
+
+def test_token_is_loaded_from_env(client_config):
+    os.environ["NOTEABLE_TOKEN"] = "fake-token-env"
+    client = NoteableClient(config=client_config)
+    assert client.token.access_token == "fake-token-env"
+
+
+@pytest.mark.parametrize("env_name", ["NOTEABLE_URL", "NOTEABLE_DOMAIN"])
+def test_domain_is_loaded_from_env(client_config, env_name):
+    os.environ[env_name] = "https://example.com"
+    client = NoteableClient(config=client_config)
+    assert client.config.domain == "https://example.com"
 
 
 @pytest.mark.asyncio
