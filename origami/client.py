@@ -18,6 +18,7 @@ from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
 from .types.files import NotebookFile
+from .types.jobs import CreateParameterizedNotebookRequest, JobInstanceAttempt
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -297,6 +298,26 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         if file_id in self.file_session_cache:
             del self.file_session_cache[file.id]
+
+    @_default_timeout_arg
+    async def create_parameterized_notebook(
+        self,
+        notebook: Union[UUID, NotebookFile],
+        notebook_version_id: UUID = None,
+        job_instance_attempt: JobInstanceAttempt = None,
+        timeout: float = None,
+    ):
+        notebook_id = notebook if not isinstance(notebook, NotebookFile) else notebook.id
+        body = CreateParameterizedNotebookRequest(
+            notebook_version_id=notebook_version_id, job_instance_attempt=job_instance_attempt
+        )
+        resp = await self.post(
+            f"{self.api_server_uri}/files/{notebook_id}/parameterized_notebooks",
+            data=body.json(),
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return NotebookFile.parse_obj(resp.json())
 
     @property
     def in_context(self):
