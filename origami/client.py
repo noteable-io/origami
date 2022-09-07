@@ -129,13 +129,17 @@ class NoteableClient(httpx.AsyncClient):
                 config = ClientConfig()
             else:
                 config = ClientConfig.parse_file(settings.auth0_config_path)
+
         self.config = config
+        self.config.domain = os.getenv(
+            "NOTEABLE_URL", os.getenv("NOTEABLE_DOMAIN", self.config.domain)
+        )
         self.file_session_cache = {}
 
         self.user = None
-        self.token = api_token or self.get_token()
+        self.token = api_token or os.getenv("NOTEABLE_TOKEN") or self.get_token()
         if isinstance(self.token, str):
-            self.token = Token(access_token=api_token)
+            self.token = Token(access_token=self.token)
         self.rtu_socket = None
         self.process_task_loop = None
 
