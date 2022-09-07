@@ -312,7 +312,7 @@ class NoteableClient(httpx.AsyncClient):
             notebook_version_id=notebook_version_id, job_instance_attempt=job_instance_attempt
         )
         resp = await self.post(
-            f"{self.api_server_uri}/files/{notebook_id}/parameterized_notebooks",
+            f"{self.api_server_uri}/v1/files/{notebook_id}/parameterized_notebooks",
             data=body.json(),
             timeout=timeout,
         )
