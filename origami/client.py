@@ -200,6 +200,14 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
 
+    async def get_version_or_none(self, version_id: UUID) -> Optional[FileVersion]:
+        """Fetches a file version via the Noteable REST API as a FileVersion model (see files.py)"""
+        resp = await self.get(f"{self.api_server_uri}/fileversions/{version_id}")
+        if resp.status_code == 404:
+            return
+        resp.raise_for_status()
+        return FileVersion.parse_raw(resp.content)
+
     async def get_kernel_session(
         self, file: Union[UUID, NotebookFile]
     ) -> Optional[KernelStatusUpdate]:
