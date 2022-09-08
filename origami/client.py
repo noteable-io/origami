@@ -319,7 +319,7 @@ class NoteableClient(httpx.AsyncClient):
 
         If given a notebook version id, fetch the version details and extract file id to construct the request path.
         """
-        file_version = await self.try_get_version(notebook_id)
+        file_version = await self.get_version_or_none(notebook_id)
         file_id = notebook_id if file_version is None else file_version.file_id
         notebook_version_id = None if file_version is None else file_version.id
         body = CreateParameterizedNotebookRequest(
