@@ -17,7 +17,7 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
-from .types.files import NotebookFile
+from .types.files import NotebookFile, FileVersion
 from .types.jobs import CreateParameterizedNotebookRequest, JobInstanceAttempt
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
@@ -310,17 +310,23 @@ class NoteableClient(httpx.AsyncClient):
     @_default_timeout_arg
     async def create_parameterized_notebook(
         self,
-        notebook: Union[UUID, NotebookFile],
-        notebook_version_id: UUID = None,
+        notebook_id: UUID,
         job_instance_attempt: JobInstanceAttempt = None,
         timeout: float = None,
     ):
-        notebook_id = notebook if not isinstance(notebook, NotebookFile) else notebook.id
+        """
+        Creates a parameterized_notebook given a notebook version id or a notebook file id.
+
+        If given a notebook version id, fetch the version details and extract file id to construct the request path.
+        """
+        file_version = await self.try_get_version(notebook_id)
+        file_id = notebook_id if file_version is None else file_version.file_id
+        notebook_version_id = None if file_version is None else file_version.id
         body = CreateParameterizedNotebookRequest(
             notebook_version_id=notebook_version_id, job_instance_attempt=job_instance_attempt
         )
         resp = await self.post(
-            f"{self.api_server_uri}/v1/files/{notebook_id}/parameterized_notebooks",
+            f"{self.api_server_uri}/v1/files/{file_id}/parameterized_notebooks",
             data=body.json(),
             timeout=timeout,
         )
