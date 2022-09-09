@@ -606,7 +606,6 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
-    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def subscribe_channel(self, channel: str, timeout: float):
         """A generic pattern for subscribing to topic channels."""
         req, tracker = self._gen_subscription_request(channel)
