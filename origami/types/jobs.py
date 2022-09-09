@@ -15,7 +15,7 @@ class JobInstanceAttemptStatus(str, enum.Enum):
     def _generate_next_value_(name: str, *args, **kwargs) -> str:
         return name
 
-    CREATED = enum.auto()  # created but not yet started
+    CREATED = enum.auto()  # created but execution has not yet started
     RUNNING = enum.auto()  # started but not yet completed
     SUCCEEDED = enum.auto()  # completed successfully
     FAILED = enum.auto()  # completed unsuccessfully
