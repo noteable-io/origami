@@ -16,7 +16,7 @@ class JobInstanceAttemptStatus(str, enum.Enum):
         return name
 
     CREATED = enum.auto()  # created but execution has not yet started
-    RUNNING = enum.auto()  # started but not yet completed
+    RUNNING = enum.auto()  # execution started but not yet completed
     SUCCEEDED = enum.auto()  # completed successfully
     FAILED = enum.auto()  # completed unsuccessfully
 
