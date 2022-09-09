@@ -353,6 +353,11 @@ class NoteableClient(httpx.AsyncClient):
     async def create_job_instance(
         self, job_instance_input: CustomerJobInstanceReferenceInput, timeout: float = None
     ) -> CustomerJobInstanceReference:
+        """Create a job instance in Noteable, reference a job instance in a third-party system.
+
+        A job definition has many job instances, a job instance has many attempts.
+        Each attempt is created through the `create_parameterized_notebook` method.
+        """
         resp = await self.post(
             f"{self.api_server_uri}/v1/customer-job-instances",
             content=job_instance_input.json(exclude_unset=True),
