@@ -17,7 +17,7 @@ import websockets
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
-from .types.files import NotebookFile, FileVersion
+from .types.files import FileVersion, NotebookFile
 from .types.jobs import CreateParameterizedNotebookRequest, JobInstanceAttempt
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
@@ -194,15 +194,19 @@ class NoteableClient(httpx.AsyncClient):
         token_data = jwt.decode(token, options={"verify_signature": False})
         return Token(access_token=token, **token_data)
 
-    async def get_notebook(self, file_id) -> NotebookFile:
+    @_default_timeout_arg
+    async def get_notebook(self, file_id, timeout=None) -> NotebookFile:
         """Fetches a notebook file via the Noteable REST API as a NotebookFile model (see files.py)"""
-        resp = await self.get(f"{self.api_server_uri}/files/{file_id}")
+        resp = await self.get(f"{self.api_server_uri}/files/{file_id}", timeout=timeout)
         resp.raise_for_status()
         return NotebookFile.parse_raw(resp.content)
 
-    async def get_version_or_none(self, version_id: UUID) -> Optional[FileVersion]:
+    @_default_timeout_arg
+    async def get_version_or_none(
+        self, version_id: UUID, timeout: int = None
+    ) -> Optional[FileVersion]:
         """Fetches a file version via the Noteable REST API as a FileVersion model (see files.py)"""
-        resp = await self.get(f"{self.api_server_uri}/fileversions/{version_id}")
+        resp = await self.get(f"{self.api_server_uri}/fileversions/{version_id}", timeout=timeout)
         if resp.status_code == 404:
             return
         resp.raise_for_status()
@@ -236,7 +240,7 @@ class NoteableClient(httpx.AsyncClient):
             file, kernel_name=kernel_name, hardware_size=hardware_size
         )
         # Needs the .dict conversion to avoid thinking it's an object with a synchronous byte stream
-        resp = await self.post(f"{self.api_server_uri}/sessions", data=request.json())
+        resp = await self.post(f"{self.api_server_uri}/v1/sessions", data=request.json())
         resp.raise_for_status()
         resp_data = resp.json()
         session = KernelStatusUpdate(session_id=resp_data["id"], kernel=resp_data["kernel"])
@@ -331,7 +335,9 @@ class NoteableClient(httpx.AsyncClient):
             timeout=timeout,
         )
         resp.raise_for_status()
-        return NotebookFile.parse_obj(resp.json())
+        file: NotebookFile = NotebookFile.parse_obj(resp.json())
+        file.content = httpx.get(file.presigned_download_url).content.decode("utf-8")
+        return file
 
     @property
     def in_context(self):
@@ -623,7 +629,6 @@ class NoteableClient(httpx.AsyncClient):
         else:
             file_id = file
             # from_delta_id = from_delta_id
-            from_version_id = file.current_version_id
         channel = self.files_channel(file_id)
         req, tracker = self._gen_subscription_request(channel)
         tracker.response_schema = FileSubscribeReplySchema

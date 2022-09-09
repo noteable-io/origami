@@ -405,4 +405,3 @@ class FileVersion(BaseModel):
 
     # A presigned URL to retrieve the content of the version after all deltas were applied
     content_presigned_url: str
-

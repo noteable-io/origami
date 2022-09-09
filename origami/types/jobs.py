@@ -2,7 +2,7 @@ import enum
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, Field, root_validator
 
 
 class JobInstanceAttemptStatus(str, enum.Enum):
@@ -25,8 +25,8 @@ class JobInstanceAttemptStatus(str, enum.Enum):
 
 
 class JobInstanceAttempt(BaseModel):
-    status: JobInstanceAttemptStatus
-    attempt_number: int
+    status: JobInstanceAttemptStatus = Field(default=JobInstanceAttemptStatus.CREATED)
+    attempt_number: int = Field(default=0)
 
     # A parameterized notebook may be associated with a job instance, but is not required to.
     # If exactly one of these are set, then a JobInstanceAttempt will be created for the parameterized notebook.
