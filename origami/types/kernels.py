@@ -8,7 +8,7 @@ from typing import Optional
 import bitmath
 from pydantic import BaseModel
 
-from .files import FileType, NotebookFile
+from .files import NotebookFile
 
 
 @enum.unique
@@ -255,7 +255,7 @@ class SessionRequestDetails(BaseModel):
         The function sets the hardware size and kernel info from the file and
         places it in the corresponding request fields.
         """
-        metadata = file.json_contents['metadata']
+        metadata = file.json_contents[f'metadata']
         kernel_name = kernel_name or metadata.get('kernel_info', {}).get('name', 'python3')
         hardware_size = hardware_size or metadata.get('selected_hardware_size')
         return SessionRequestDetails(

@@ -382,7 +382,7 @@ class ExistsResult(BaseModel):
 
 class FileVersion(BaseModel):
     """A version created by squashing a collection of file deltas.
-    
+
     A file delta represents one change to made to a file. By combining the base file version
     and the collection of delta changes, a specific version can be composed from history.
     """
