@@ -76,7 +76,7 @@ def test_token_is_loaded_from_env(client_config):
     assert client.token.access_token == "fake-token-env"
 
 
-@pytest.mark.parametrize("env_name", ["NOTEABLE_URL", "NOTEABLE_DOMAIN"])
+@pytest.mark.parametrize("env_name", ["NOTEABLE_URI", "NOTEABLE_DOMAIN"])
 def test_domain_is_loaded_from_env(client_config, env_name):
     os.environ[env_name] = "https://example.com"
     client = NoteableClient(config=client_config)

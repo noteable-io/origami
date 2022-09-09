@@ -132,7 +132,7 @@ class NoteableClient(httpx.AsyncClient):
 
         self.config = config
         self.config.domain = os.getenv(
-            "NOTEABLE_URL", os.getenv("NOTEABLE_DOMAIN", self.config.domain)
+            "NOTEABLE_URI", os.getenv("NOTEABLE_DOMAIN", self.config.domain)
         )
         self.file_session_cache = {}
 
