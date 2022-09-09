@@ -20,7 +20,12 @@ from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
 from .types.files import FileVersion, NotebookFile
-from .types.jobs import CreateParameterizedNotebookRequest, JobInstanceAttempt
+from .types.jobs import (
+    CreateParameterizedNotebookRequest,
+    CustomerJobInstanceReference,
+    CustomerJobInstanceReferenceInput,
+    JobInstanceAttempt,
+)
 from .types.kernels import SessionRequestDetails
 from .types.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
@@ -245,7 +250,7 @@ class NoteableClient(httpx.AsyncClient):
             file, kernel_name=kernel_name, hardware_size=hardware_size
         )
         # Needs the .dict conversion to avoid thinking it's an object with a synchronous byte stream
-        resp = await self.post(f"{self.api_server_uri}/v1/sessions", data=request.json())
+        resp = await self.post(f"{self.api_server_uri}/v1/sessions", content=request.json())
         resp.raise_for_status()
         resp_data = resp.json()
         session = KernelStatusUpdate(session_id=resp_data["id"], kernel=resp_data["kernel"])
@@ -336,13 +341,30 @@ class NoteableClient(httpx.AsyncClient):
         )
         resp = await self.post(
             f"{self.api_server_uri}/v1/files/{file_id}/parameterized_notebooks",
-            data=body.json(),
+            content=body.json(),
             timeout=timeout,
         )
         resp.raise_for_status()
         file: NotebookFile = NotebookFile.parse_obj(resp.json())
         file.content = httpx.get(file.presigned_download_url).content.decode("utf-8")
         return file
+
+    @_default_timeout_arg
+    async def create_job_instance(
+        self, job_instance_input: CustomerJobInstanceReferenceInput, timeout: float = None
+    ) -> CustomerJobInstanceReference:
+        """Create a job instance in Noteable, reference a job instance in a third-party system.
+
+        A job definition has many job instances, a job instance has many attempts.
+        Each attempt is created through the `create_parameterized_notebook` method.
+        """
+        resp = await self.post(
+            f"{self.api_server_uri}/v1/customer-job-instances",
+            content=job_instance_input.json(exclude_unset=True),
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return CustomerJobInstanceReference.parse_obj(resp.json())
 
     @property
     def in_context(self):

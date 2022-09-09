@@ -9,6 +9,12 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 
+from origami.types.jobs import (
+    CustomerJobDefinitionReferenceInput,
+    CustomerJobInstanceReference,
+    CustomerJobInstanceReferenceInput,
+)
+
 from ..client import ClientConfig, NoteableClient
 from ..types.rtu import (
     AuthenticationReply,
@@ -121,6 +127,44 @@ async def test_client_subscribe(connect_mock, client):
     resp = await client.subscribe_channel('fake-channel')
     assert resp.data.success == True
     assert resp.channel == 'fake-channel'
+
+
+@pytest.mark.asyncio
+async def test_create_job_instance(httpx_mock, client: NoteableClient):
+    job_instance_id = uuid4()
+    space_id = uuid4()
+
+    httpx_mock.add_response(
+        url=f"{client.api_server_uri}/v1/customer-job-instances",
+        content=CustomerJobInstanceReference(
+            id=uuid4(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            customer_job_definition_reference_id=uuid4(),
+        ).json(),
+        match_content=json.dumps(
+            {
+                "orchestrator_job_instance_id": str(job_instance_id),
+                "customer_job_definition_reference": {
+                    "space_id": str(space_id),
+                    "orchestrator_id": "dagster",
+                    "orchestrator_name": "Dagster",
+                    "orchestrator_job_definition_id": "my_dagster_job",
+                },
+            }
+        ).encode("utf-8"),
+    )
+    await client.create_job_instance(
+        CustomerJobInstanceReferenceInput(
+            orchestrator_job_instance_id=str(job_instance_id),
+            customer_job_definition_reference=CustomerJobDefinitionReferenceInput(
+                space_id=space_id,
+                orchestrator_id="dagster",
+                orchestrator_name="Dagster",
+                orchestrator_job_definition_id="my_dagster_job",
+            ),
+        )
+    )
 
 
 @pytest.mark.xfail(
