@@ -1,13 +1,14 @@
 """This file captures everything Kernel related in regards to model and helper functions."""
 
 import enum
+import uuid
 from datetime import datetime
 from typing import Optional
 
 import bitmath
 from pydantic import BaseModel
 
-from .files import FileType, NotebookFile
+from .files import NotebookFile
 
 
 @enum.unique
@@ -230,13 +231,18 @@ class KernelRequestDetails(BaseModel):
     metadata: Optional[KernelRequestMetadata] = None
 
 
+class StartKernelSession(BaseModel):
+    """The kernel name and optional hardware size to use at the start of a Kernel session."""
+
+    kernel_name: str
+    hardware_size_identifier: Optional[str]
+
+
 class SessionRequestDetails(BaseModel):
     """Represents a SessionRequest form that asks about a notebook / kernel session."""
 
-    name: str = ''  # Also unused in source - always set to '' in jupyter land
-    path: str
-    type: FileType = FileType.notebook  # Unused in source? Nteract only ever sends "notebook", too
-    kernel: KernelRequestDetails
+    file_id: uuid.UUID
+    kernel_config: StartKernelSession
 
     @classmethod
     def generate_file_request(
@@ -253,9 +259,9 @@ class SessionRequestDetails(BaseModel):
         metadata = file.json_contents['metadata']
         kernel_name = kernel_name or metadata.get('kernel_info', {}).get('name', 'python3')
         hardware_size = hardware_size or metadata.get('selected_hardware_size')
-        request_metadata = KernelRequestMetadata(hardware_size_identifier=hardware_size)
         return SessionRequestDetails(
-            path=f'{file.project_id}/{file.path}',
-            type=FileType.notebook,
-            kernel=KernelRequestDetails(name=kernel_name, metadata=request_metadata),
+            file_id=file.id,
+            kernel_config=StartKernelSession(
+                kernel_name=kernel_name, hardware_size_identifier=hardware_size
+            ),
         )

@@ -378,3 +378,34 @@ class ExistsResult(BaseModel):
     """The response payload for existence check requests"""
 
     exists: bool
+
+
+class FileVersion(BaseModel):
+    """A version created by squashing a collection of file deltas.
+
+    A file delta represents one change to made to a file. By combining the base file version
+    and the collection of delta changes, a specific version can be composed from history.
+    """
+
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = Field(
+        description="null if the latest unsaved version or not deleted"
+    )
+    created_by_id: Optional[UUID]
+
+    number: Optional[int] = Field(
+        description="v0, v1, ... unique per file, null if the latest unsaved version"
+    )
+    name: Optional[str] = Field(
+        description="The name for this version, if not set the version is unnamed and "
+        "the created_at datetime should be used to generate a name"
+    )
+    description: Optional[str]
+    file_id: UUID
+    project_id: UUID
+    space_id: UUID
+
+    # A presigned URL to retrieve the content of the version after all deltas were applied
+    content_presigned_url: str

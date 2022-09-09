@@ -31,10 +31,9 @@ def file():
 class TestSessionRequestDetails:
     def test_generate_file_request(self, file):
         session_request = SessionRequestDetails.generate_file_request(file)
-        assert session_request.path == f'{file.project_id}/{file.path}'
-        assert session_request.type == FileType.notebook
-        assert session_request.kernel.name == 'python3'
-        assert session_request.kernel.metadata.hardware_size_identifier is None
+        assert session_request.file_id == file.id
+        assert session_request.kernel_config.kernel_name == 'python3'
+        assert session_request.kernel_config.hardware_size_identifier is None
 
     def test_generate_file_request_with_metadata(self, file):
         file = file.copy(
@@ -51,5 +50,5 @@ class TestSessionRequestDetails:
         )
         session_request = SessionRequestDetails.generate_file_request(file)
 
-        assert session_request.kernel.name == 'r'
-        assert session_request.kernel.metadata.hardware_size_identifier == 'small'
+        assert session_request.kernel_config.kernel_name == 'r'
+        assert session_request.kernel_config.hardware_size_identifier == 'small'
