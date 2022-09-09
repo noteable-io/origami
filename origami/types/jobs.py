@@ -25,6 +25,13 @@ class JobInstanceAttemptStatus(str, enum.Enum):
 
 
 class JobInstanceAttempt(BaseModel):
+    """
+    Represents an attempt to execute a job.
+
+    A job attempt holds the execution status of an attempt and the ordinal number of the attempt.
+    Optionally, a job instance id can be set for a job attempt.
+    """
+
     status: JobInstanceAttemptStatus = Field(default=JobInstanceAttemptStatus.CREATED)
     attempt_number: int = Field(default=0)
 
@@ -46,6 +53,8 @@ class JobInstanceAttempt(BaseModel):
 
 class CreateParameterizedNotebookRequest(BaseModel):
     """
+    A request to create a new parameterized notebook for parameterized execution.
+
     `noteable_job_instance_id` and `customer_job_definition_reference_id` may be optionally supplied;
      they will associate the parameterized notebook with a job instance and job definition.
     """
