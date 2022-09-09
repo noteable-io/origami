@@ -207,7 +207,7 @@ class FileSubscriptionUser(BaseModel):
 class FileSubscribeActionReplyData(TopicActionReplyData):
     """The response payload for a file subscription event."""
 
-    user_subscriptions: List[FileSubscriptionUser]
+    user_subscriptions: List[FileSubscriptionUser] = Field(default_factory=list)
     deltas_to_apply: List[FileDelta] = Field(default_factory=list)
     cell_states: List[CellStateMessage] = Field(default_factory=list)
     kernel_session: Optional[KernelStatusUpdate] = None
