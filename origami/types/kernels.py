@@ -232,6 +232,7 @@ class KernelRequestDetails(BaseModel):
 
 
 class StartKernelSession(BaseModel):
+    """The kernel name and optional hardware size to use at the start of a Kernel session.
     kernel_name: str
     hardware_size_identifier: Optional[str]
 
