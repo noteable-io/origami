@@ -631,7 +631,6 @@ class NoteableClient(httpx.AsyncClient):
             # from_delta_id = from_delta_id
         channel = self.files_channel(file_id)
         req, tracker = self._gen_subscription_request(channel)
-        tracker.response_schema = FileSubscribeReplySchema
         # TODO: write test for these fields
         req.data = {}
         if from_version_id:
