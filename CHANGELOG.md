@@ -5,9 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.4] - 2022-09-09
 ### Added
 - Support loading JWT token from `NOTEABLE_TOKEN` environment variable.
 - Support loading API domain from `NOTEABLE_URL` or `NOTEABLE_DOMAIN` environment variable.
+- Add `create_parameterized_notebook` method to `NoteableClient`
+- Add `create_job_instance` method to `NoteableClient`
 
 ## [0.0.3] - 2022-09-02
 ### Fixed
