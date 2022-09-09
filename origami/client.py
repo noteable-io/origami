@@ -10,10 +10,12 @@ from queue import LifoQueue
 from typing import Any, Dict, Optional, Type, Union
 from uuid import UUID, uuid4
 
+import backoff
 import httpx
 import jwt
 import structlog
 import websockets
+from httpx import ReadTimeout
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
@@ -195,6 +197,7 @@ class NoteableClient(httpx.AsyncClient):
         return Token(access_token=token, **token_data)
 
     @_default_timeout_arg
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def get_notebook(self, file_id, timeout=None) -> NotebookFile:
         """Fetches a notebook file via the Noteable REST API as a NotebookFile model (see files.py)"""
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}", timeout=timeout)
@@ -202,6 +205,7 @@ class NoteableClient(httpx.AsyncClient):
         return NotebookFile.parse_raw(resp.content)
 
     @_default_timeout_arg
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def get_version_or_none(
         self, version_id: UUID, timeout: int = None
     ) -> Optional[FileVersion]:
@@ -212,6 +216,7 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return FileVersion.parse_raw(resp.content)
 
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def get_kernel_session(
         self, file: Union[UUID, NotebookFile]
     ) -> Optional[KernelStatusUpdate]:
@@ -581,7 +586,7 @@ class NoteableClient(httpx.AsyncClient):
             # before the subscribe_reply (for e.g. update_user_file_subscription_event)
             if resp.event != "subscribe_reply":
                 raise SkipCallback("This callback only processes subscribe_reply")
-            resp = GenericRTUReplySchema[TopicActionReplyData].parse_obj(resp)
+            resp = FileSubscribeReplySchema.parse_obj(resp)
             if resp.data.success:
                 self.subscriptions.add(resp.channel)
             else:
@@ -601,6 +606,7 @@ class NoteableClient(httpx.AsyncClient):
 
     @_requires_ws_context
     @_default_timeout_arg
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def subscribe_channel(self, channel: str, timeout: float):
         """A generic pattern for subscribing to topic channels."""
         req, tracker = self._gen_subscription_request(channel)

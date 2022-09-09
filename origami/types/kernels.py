@@ -233,6 +233,7 @@ class KernelRequestDetails(BaseModel):
 
 class StartKernelSession(BaseModel):
     """The kernel name and optional hardware size to use at the start of a Kernel session."""
+
     kernel_name: str
     hardware_size_identifier: Optional[str]
 
@@ -255,7 +256,7 @@ class SessionRequestDetails(BaseModel):
         The function sets the hardware size and kernel info from the file and
         places it in the corresponding request fields.
         """
-        metadata = file.json_contents[f'metadata']
+        metadata = file.json_contents['metadata']
         kernel_name = kernel_name or metadata.get('kernel_info', {}).get('name', 'python3')
         hardware_size = hardware_size or metadata.get('selected_hardware_size')
         return SessionRequestDetails(
