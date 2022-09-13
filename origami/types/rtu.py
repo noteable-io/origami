@@ -320,6 +320,58 @@ class CellStateMessageReply(GenericRTUReplySchema[CellStateMessageData]):
     event = 'cell_state_update_event'
 
 
+class KernelOutputType(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    execute_result = enum.auto()
+    stream = enum.auto()
+    display_data = enum.auto()
+    error = enum.auto()
+    clear_output = enum.auto()
+    update_display_data = enum.auto()
+
+
+class KernelOutputContent(BaseModel):
+    raw: Optional[str] = None
+    url: Optional[str] = None
+    mimetype: str
+
+
+class KernelOutput(NoteableAPIModel):
+    type: KernelOutputType
+    display_id: Optional[str]
+    available_mimetypes: List[str]
+    content_metadata: KernelOutputContent
+    content: Optional[KernelOutputContent]
+    parent_collection_id: UUID
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class KernelOutputCollection(NoteableAPIModel):
+    cell_id: Optional[str] = None
+    widget_model_id: Optional[str] = None
+    file_id: UUID
+    outputs: List[KernelOutput]
+
+    @root_validator
+    def has_cell_or_model_id(cls, values):
+        assert any(
+            [values.get("cell_id") is not None, values.get("widget_model_id") is not None]
+        ), "collection must contain either cell id or model id"
+        assert not all(
+            [values.get("cell_id") is not None, values.get("widget_model_id") is not None]
+        ), "collection must contain either cell id or model id, not both"
+        return values
+
+
+UpdateOutputCollectionEventSchema = GenericRTUReplySchema[KernelOutputCollection]
+
+AppendOutputEventSchema = GenericRTUReplySchema[KernelOutput]
+
+
 @enum.unique
 class KernelStatus(enum.Enum):
     """The enumerable defining all the possible kernel states one can land in.
