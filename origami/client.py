@@ -16,6 +16,7 @@ import jwt
 import structlog
 import websockets
 from httpx import ReadTimeout
+from nbclient.util import run_sync
 from pydantic import BaseModel, BaseSettings, ValidationError
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
@@ -130,7 +131,7 @@ class NoteableClient(httpx.AsyncClient):
         if not config:
             settings = ClientSettings()
             if not os.path.exists(settings.auth0_config_path):
-                logger.error(
+                logger.warning(
                     f"No config object passed in and no config file found at {settings.auth0_config_path}"
                     ", using default empty config"
                 )
@@ -408,6 +409,12 @@ class NoteableClient(httpx.AsyncClient):
             logger.exception("Error in closing out nested context loops")
         finally:
             return await httpx.AsyncClient.__aexit__(self, exc_type, exc, tb)
+
+    def __enter__(self):
+        return run_sync(self.__aenter__)()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return run_sync(self.__aexit__)(exc_type, exc_val, exc_tb)
 
     def register_message_callback(
         self,
