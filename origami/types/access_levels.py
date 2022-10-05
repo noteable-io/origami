@@ -65,6 +65,7 @@ class AccessLevelAction(enum.Enum):
     create_file_version = enum.auto()
     create_file_sandbox = enum.auto()
     create_parameterized_notebook = enum.auto()
+    rename = enum.auto()
 
     # NotebookFile comment actions
     view_comments = enum.auto()
