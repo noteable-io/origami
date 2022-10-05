@@ -314,10 +314,15 @@ class CellStateMessageData(BaseModel):
     queued_by_id: Optional[UUID]  # user ID
 
 
-class CellStateMessageReply(GenericRTUReplySchema[CellStateMessageData]):
-    """Defines a status update message from the rtu websocket"""
+class BulkCellStateMessageData(BaseModel):
 
-    event = 'cell_state_update_event'
+    cell_states: List[CellStateMessageData]
+
+
+class BulkCellStateMessage(GenericRTUReplySchema[BulkCellStateMessageData]):
+    """Defines a bulk cell status update message from the rtu websocket"""
+
+    event = 'bulk_cell_state_update_event'
 
 
 class KernelOutputType(enum.Enum):

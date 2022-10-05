@@ -19,6 +19,8 @@ from httpx import ReadTimeout
 from nbclient.util import run_sync
 from pydantic import BaseModel, BaseSettings, ValidationError
 
+from origami.types.rtu import BulkCellStateMessage
+
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
 from .types.files import FileVersion, NotebookFile
 from .types.jobs import (
@@ -35,7 +37,6 @@ from .types.rtu import (
     AuthenticationRequest,
     AuthenticationRequestData,
     CallbackTracker,
-    CellStateMessageReply,
     FileDeltaReply,
     FileSubscribeReplySchema,
     GenericRTUMessage,
@@ -791,12 +792,13 @@ class NoteableClient(httpx.AsyncClient):
         tracker_future = tracker.next_trigger
         results_tracker_future = None
 
-        async def cell_complete_check(resp: CellStateMessageReply):
-            if resp.data.cell_id != cell_id:
-                raise SkipCallback("Not tracked cell")
-            if not resp.data.state.is_terminal_state:
-                raise SkipCallback("Not terminal state")
-            return resp
+        async def cell_complete_check(resp: BulkCellStateMessage):
+            for cell_state in resp.data.cell_states:
+                if cell_state.cell_id == cell_id and cell_state.state.is_terminal_state:
+                    return cell_state
+                elif cell_state.cell_id == cell_id and not cell_state.state.is_terminal_state:
+                    raise SkipCallback("Not terminal state")
+            raise SkipCallback("Not tracked cell")
 
         if await_results:
             assert (
@@ -806,8 +808,8 @@ class NoteableClient(httpx.AsyncClient):
             results_tracker = self.register_message_callback(
                 cell_complete_check,
                 session.kernel_channel,
-                "cell_state_update_event",
-                response_schema=CellStateMessageReply,
+                "bulk_cell_state_update_event",
+                response_schema=BulkCellStateMessage,
             )
             results_tracker_future = results_tracker.next_trigger
 
