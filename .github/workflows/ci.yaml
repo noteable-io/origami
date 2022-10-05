@@ -22,11 +22,11 @@ jobs:
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.2.0
+          poetry-version: 1.2.1
       - name: Install dependencies
         run: |
-          poetry export -f requirements.txt --extras "all" --without-hashes --with dev --output requirements.txt
-          pip install -r requirements.txt
+          poetry install --all-extras --with dev
+          pip install nox-poetry
       - name: Run tests
         run: nox -s test-${{ matrix.python_version }}
       - name: Generate coverage XML
@@ -43,10 +43,10 @@ jobs:
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.2.0
+          poetry-version: 1.2.1
       - name: Install dependencies
         run: |
-          poetry export -f requirements.txt --extras "all" --without-hashes --with dev --output requirements.txt
-          pip install -r requirements.txt
+          poetry install --all-extras --with dev
+          pip install nox-poetry
       - name: Run lint
         run: nox -s lint
