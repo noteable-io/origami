@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+- Add `__enter__` and `__exit__` methods to `NoteableClient` to allow it to be used as a synchronous context manager
+- Read `bulk_cell_state_update_event` messages for cell state instead of `cell_state_update_event`
+
 ## [0.0.5] - 2022-09-13
 ### Added
 - Add kernel output types for papermill-origami
