@@ -19,6 +19,7 @@ from httpx import ReadTimeout
 from nbclient.util import run_sync
 from pydantic import BaseModel, BaseSettings, ValidationError
 
+from origami.types.deltas import NBMetadataProperties, V2CellMetadataProperties
 from origami.types.rtu import BulkCellStateMessage
 
 from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
@@ -739,6 +740,55 @@ class NoteableClient(httpx.AsyncClient):
             FileDeltaAction.add,
             cell['id'],
             properties=NBCellProperties(id=cell['id'], cell=cell, after_id=after_id),
+        )
+        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def update_cell_metadata(
+        self,
+        file: NotebookFile,
+        cell_id: str,
+        metadata_update_properties: V2CellMetadataProperties,
+        timeout: float,
+    ):
+        """Sends an RTU request to update the metadata of a cell"""
+
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                raise RTUError(f"Failed to update metadata for cell {cell_id} in file {file.id}")
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(),
+            FileDeltaType.cell_metadata,
+            FileDeltaAction.update,
+            cell_id,
+            properties=metadata_update_properties,
+        )
+        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        await self.send_rtu_request(req)
+        return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @_requires_ws_context
+    @_default_timeout_arg
+    async def update_nb_metadata(
+        self, file: NotebookFile, metadata_update_properties: NBMetadataProperties, timeout: float
+    ):
+        """Sends an RTU request to update the metadata of a notebook"""
+
+        async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
+            if not resp.data.success:
+                raise RTUError(f"Failed to update nb metadata for {file.id}")
+            return resp
+
+        req = file.generate_delta_request(
+            uuid4(),
+            FileDeltaType.nb_metadata,
+            FileDeltaAction.update,
+            properties=metadata_update_properties,
         )
         tracker = FileDeltaReply.register_callback(self, req, check_success)
         await self.send_rtu_request(req)

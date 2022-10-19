@@ -16,7 +16,13 @@ from pydantic import BaseModel, Field, root_validator, validator
 
 from ..pathing import ensure_relative_path
 from .access_levels import AccessLevel, ResourceData, Visibility
-from .deltas import FileDeltaAction, FileDeltaRequestBase, FileDeltaType, NewFileDeltaData
+from .deltas import (
+    NULL_RESOURCE_SENTINEL,
+    FileDeltaAction,
+    FileDeltaRequestBase,
+    FileDeltaType,
+    NewFileDeltaData,
+)
 from .models import Resource
 
 JSON = Dict[str, Any]
@@ -242,7 +248,7 @@ class NotebookFile(FileRBACModel):
         transaction_id: UUID,
         delta_type: FileDeltaType,
         delta_action: FileDeltaAction,
-        cell_id: Optional[str],
+        cell_id: Optional[str] = NULL_RESOURCE_SENTINEL,
         properties: Any = None,
     ):
         """A helper method for creating delta requests from a NotebookFile object.

@@ -191,7 +191,7 @@ class NBMetadataProperties(BaseModel):
 
     path: list
     value: Any
-    prior_value: Any
+    prior_value: Optional[Any]
 
 
 class V2CellOutputCollectionProperties(BaseModel):
