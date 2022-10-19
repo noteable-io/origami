@@ -242,6 +242,7 @@ class NoteableClient(httpx.AsyncClient):
             self.file_session_cache[file_id] = session
             return session
 
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
     async def launch_kernel_session(
         self,
         file: NotebookFile,
