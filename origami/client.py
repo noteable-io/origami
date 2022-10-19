@@ -754,7 +754,7 @@ class NoteableClient(httpx.AsyncClient):
         metadata_update_properties: V2CellMetadataProperties,
         timeout: float,
     ):
-        """Sends an RTU request to update the metadata of a file"""
+        """Sends an RTU request to update the metadata of a cell"""
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
@@ -777,7 +777,7 @@ class NoteableClient(httpx.AsyncClient):
     async def update_nb_metadata(
         self, file: NotebookFile, metadata_update_properties: NBMetadataProperties, timeout: float
     ):
-        """Sends an RTU request to update the metadata of a file"""
+        """Sends an RTU request to update the metadata of a notebook"""
 
         async def check_success(resp: GenericRTUReplySchema[TopicActionReplyData]):
             if not resp.data.success:
