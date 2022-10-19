@@ -67,6 +67,12 @@ class AccessLevelAction(enum.Enum):
     create_parameterized_notebook = enum.auto()
     rename = enum.auto()
 
+    # File job specific actions
+    create_job_definition = enum.auto()
+    read_job_definitions = enum.auto()
+    update_job_definition = enum.auto()
+    delete_job_definition = enum.auto()
+
     # NotebookFile comment actions
     view_comments = enum.auto()
     create_comment = enum.auto()
