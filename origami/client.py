@@ -55,6 +55,7 @@ from .types.rtu import (
 
 logger = structlog.get_logger('noteable.' + __name__)
 
+EXP_BACKOFF_MAX_TIME = 60
 
 class SkipCallback(ValueError):
     """Used to allow a message handler to gracefully skip processing and not be counted as a match"""
@@ -205,7 +206,7 @@ class NoteableClient(httpx.AsyncClient):
         return Token(access_token=token, **token_data)
 
     @_default_timeout_arg
-    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
     async def get_notebook(self, file_id, timeout=None) -> NotebookFile:
         """Fetches a notebook file via the Noteable REST API as a NotebookFile model (see files.py)"""
         resp = await self.get(f"{self.api_server_uri}/files/{file_id}", timeout=timeout)
@@ -213,7 +214,7 @@ class NoteableClient(httpx.AsyncClient):
         return NotebookFile.parse_raw(resp.content)
 
     @_default_timeout_arg
-    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
     async def get_version_or_none(
         self, version_id: UUID, timeout: int = None
     ) -> Optional[FileVersion]:
@@ -224,7 +225,7 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return FileVersion.parse_raw(resp.content)
 
-    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=10)
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
     async def get_kernel_session(
         self, file: Union[UUID, NotebookFile]
     ) -> Optional[KernelStatusUpdate]:
@@ -242,6 +243,7 @@ class NoteableClient(httpx.AsyncClient):
             self.file_session_cache[file_id] = session
             return session
 
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
     async def launch_kernel_session(
         self,
         file: NotebookFile,
