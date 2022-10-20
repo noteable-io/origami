@@ -57,6 +57,7 @@ logger = structlog.get_logger('noteable.' + __name__)
 
 EXP_BACKOFF_MAX_TIME = 60
 
+
 class SkipCallback(ValueError):
     """Used to allow a message handler to gracefully skip processing and not be counted as a match"""
 
