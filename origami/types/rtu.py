@@ -262,9 +262,7 @@ class OutputType(enum.Enum):
     update_display_data = enum.auto()
 
 
-class OutputContent(BaseModel):
-    """The type class holding the contents of an output from the parent message type."""
-
+class KernelOutputContent(BaseModel):
     raw: Optional[str] = None
     url: Optional[str] = None
     mimetype: str
@@ -287,8 +285,8 @@ class OutputData(NoteableAPIModel):
     type: OutputType
     display_id: Optional[str]
     available_mimetypes: List[str]
-    content_metadata: OutputContent
-    content: Optional[OutputContent]
+    content_metadata: KernelOutputContent
+    content: Optional[KernelOutputContent]
     parent_collection_id: UUID
 
 
@@ -335,12 +333,6 @@ class KernelOutputType(enum.Enum):
     error = enum.auto()
     clear_output = enum.auto()
     update_display_data = enum.auto()
-
-
-class KernelOutputContent(BaseModel):
-    raw: Optional[str] = None
-    url: Optional[str] = None
-    mimetype: str
 
 
 class KernelOutput(NoteableAPIModel):
