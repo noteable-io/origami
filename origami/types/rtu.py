@@ -369,6 +369,32 @@ UpdateOutputCollectionEventSchema = GenericRTUReplySchema[KernelOutputCollection
 AppendOutputEventSchema = GenericRTUReplySchema[KernelOutput]
 
 
+class OutputMetadata(BaseModel):
+    raw: Optional[Dict[str, Any]] = None
+    storage_path: Optional[str] = None
+    url: Optional[str] = None
+
+    @root_validator
+    def only_accept_one_not_both(cls, values: dict):
+        has_raw_and_storage_path = all([values.get("raw"), values.get("storage_path")])
+        has_raw_and_url = all([values.get("raw"), values.get("url")])
+        if has_raw_and_storage_path or has_raw_and_url:
+            raise ValueError(
+                "Either `raw` should be provided, or `storage_path`/`url` -- not `raw` and `storage_path`/`url`"
+            )
+        return values
+
+
+class DisplayHandlerUpdate(BaseModel):
+    output_ids: List[str]
+    content: KernelOutputContent
+    available_mimetypes: List[str]
+    metadata: OutputMetadata = OutputMetadata()
+
+
+DisplayHandlerUpdateEventSchema = GenericRTUReplySchema[DisplayHandlerUpdate]
+
+
 @enum.unique
 class KernelStatus(enum.Enum):
     """The enumerable defining all the possible kernel states one can land in.
