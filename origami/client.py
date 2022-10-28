@@ -144,9 +144,7 @@ class NoteableClient(httpx.AsyncClient):
                 config = ClientConfig.parse_file(settings.auth0_config_path)
 
         self.config = config
-        self.config.domain = os.getenv(
-            "NOTEABLE_URI", os.getenv("NOTEABLE_DOMAIN", self.config.domain)
-        )
+        self.config.domain = os.getenv("NOTEABLE_DOMAIN", self.config.domain)
         self.file_session_cache = {}
 
         self.user = None
