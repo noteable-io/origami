@@ -82,7 +82,7 @@ def test_token_is_loaded_from_env(client_config):
     assert client.token.access_token == "fake-token-env"
 
 
-def test_domain_is_loaded_from_env(client_config, env_name):
+def test_domain_is_loaded_from_env(client_config):
     os.environ["NOTEABLE_DOMAIN"] = "https://example.com"
     client = NoteableClient(config=client_config)
     assert client.config.domain == "https://example.com"
