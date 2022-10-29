@@ -262,9 +262,7 @@ class OutputType(enum.Enum):
     update_display_data = enum.auto()
 
 
-class OutputContent(BaseModel):
-    """The type class holding the contents of an output from the parent message type."""
-
+class KernelOutputContent(BaseModel):
     raw: Optional[str] = None
     url: Optional[str] = None
     mimetype: str
@@ -287,8 +285,8 @@ class OutputData(NoteableAPIModel):
     type: OutputType
     display_id: Optional[str]
     available_mimetypes: List[str]
-    content_metadata: OutputContent
-    content: Optional[OutputContent]
+    content_metadata: KernelOutputContent
+    content: Optional[KernelOutputContent]
     parent_collection_id: UUID
 
 
@@ -337,12 +335,6 @@ class KernelOutputType(enum.Enum):
     update_display_data = enum.auto()
 
 
-class KernelOutputContent(BaseModel):
-    raw: Optional[str] = None
-    url: Optional[str] = None
-    mimetype: str
-
-
 class KernelOutput(NoteableAPIModel):
     type: KernelOutputType
     display_id: Optional[str]
@@ -375,6 +367,32 @@ class KernelOutputCollection(NoteableAPIModel):
 UpdateOutputCollectionEventSchema = GenericRTUReplySchema[KernelOutputCollection]
 
 AppendOutputEventSchema = GenericRTUReplySchema[KernelOutput]
+
+
+class OutputMetadata(BaseModel):
+    raw: Optional[Dict[str, Any]] = None
+    storage_path: Optional[str] = None
+    url: Optional[str] = None
+
+    @root_validator
+    def only_accept_one_not_both(cls, values: dict):
+        has_raw_and_storage_path = all([values.get("raw"), values.get("storage_path")])
+        has_raw_and_url = all([values.get("raw"), values.get("url")])
+        if has_raw_and_storage_path or has_raw_and_url:
+            raise ValueError(
+                "Either `raw` should be provided, or `storage_path`/`url` -- not `raw` and `storage_path`/`url`"
+            )
+        return values
+
+
+class DisplayHandlerUpdate(BaseModel):
+    output_ids: List[str]
+    content: KernelOutputContent
+    available_mimetypes: List[str]
+    metadata: OutputMetadata = OutputMetadata()
+
+
+DisplayHandlerUpdateEventSchema = GenericRTUReplySchema[DisplayHandlerUpdate]
 
 
 @enum.unique
