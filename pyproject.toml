@@ -5,7 +5,7 @@
 
 [tool.poetry]
 name = "noteable-origami"
-version = "0.0.8"
+version = "0.0.9"
 description = "The Noteable API interface"
 authors = ["Matt Seal <matt@noteable.io>"]
 maintainers = ["Matt Seal <matt@noteable.io>"]
