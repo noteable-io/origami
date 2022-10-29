@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add types for display handler updates
 
-
 ## [0.0.7] - 2022-10-20
 ### Added
 - Add client methods for `update_cell_metadata` and `update_nb_metadata`
