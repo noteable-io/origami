@@ -47,6 +47,7 @@ plugins:
       default_handler: python
       handlers:
         python:
+          paths: [origami]
           rendering:
             show_source: true
       watch: [origami, README.md, CONTRIBUTING.md, CHANGELOG.md]
