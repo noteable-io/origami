@@ -34,7 +34,6 @@ nav:
 
 markdown_extensions:
   - pymdownx.highlight
-  - deduplicate-toc
   - pymdownx.snippets
   - toc:
       permalink: "#"
