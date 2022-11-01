@@ -3,21 +3,21 @@ site_description: A Python SDK for Noteable API interactions.
 #site_url: https://???
 
 theme:
-    name: 'material'
-    palette:
-      - scheme: 'default'
-        media: '(prefers-color-scheme: light)'
-        toggle:
-          icon: 'material/lightbulb'
-          name: "Switch to dark mode"
-      - scheme: 'slate'
-        media: '(prefers-color-scheme: dark)'
-        primary: 'blue'
-        toggle:
-          icon: 'material/lightbulb-outline'
-          name: 'Switch to light mode'
-    features:
-        - navigation.sections
+  name: 'material'
+  palette:
+    - scheme: 'default'
+      media: '(prefers-color-scheme: light)'
+      toggle:
+        icon: 'material/lightbulb'
+        name: "Switch to dark mode"
+    - scheme: 'slate'
+      media: '(prefers-color-scheme: dark)'
+      primary: 'blue'
+      toggle:
+        icon: 'material/lightbulb-outline'
+        name: 'Switch to light mode'
+  features:
+    - navigation.sections
 
 repo_name: noteable-io/origami
 repo_url: https://github.com/noteable-io/origami/
@@ -29,6 +29,8 @@ nav:
   - Usage:
     - QuickStart: 'quickstart.md'
   - Code Reference: reference/
+  - Changes:
+    - Log: 'changelog.md'
 
 markdown_extensions:
   - pymdownx.highlight
@@ -48,7 +50,7 @@ plugins:
         python:
           rendering:
             show_source: true
-      watch: [origami, README.md, CONTRIBUTING.md]
+      watch: [origami, README.md, CONTRIBUTING.md, CHANGELOG.md]
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

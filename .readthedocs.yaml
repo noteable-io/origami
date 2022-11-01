@@ -18,4 +18,4 @@ formats:
 python:
    version: 3.10
    install:
-   - requirements: docs/requirements.txt
+      - requirements: docs/requirements.txt
