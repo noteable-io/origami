@@ -9,14 +9,14 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 
-from origami.types.jobs import (
+from origami.defs.jobs import (
     CustomerJobDefinitionReferenceInput,
     CustomerJobInstanceReference,
     CustomerJobInstanceReferenceInput,
 )
 
 from ..client import ClientConfig, NoteableClient
-from ..types.rtu import (
+from ..defs.rtu import (
     AuthenticationReply,
     FileSubscribeActionReplyData,
     FileSubscribeReplySchema,

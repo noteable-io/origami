@@ -17,10 +17,13 @@ A library capturing message patterns and protocols speaking to Noteable's APIs
 
 [Install](#installation) | [Getting Started](#getting-started) | [License](./LICENSE) | [Code of Conduct](./CODE_OF_CONDUCT.md) | [Contributing](./CONTRIBUTING.md)
 
+# --8<-- [start:requirements]
 ## Requirements
 
 Python 3.8+
+# --8<-- [start:requirements]
 
+# --8<-- [start:install]
 ## Installation
 
 ### Poetry
@@ -34,18 +37,54 @@ poetry add noteable-origami
 ```shell
 pip install noteable-origami
 ```
+# --8<-- [end:install]
 
+# --8<-- [start:start]
 ## Getting Started
 
-Get your access token from https://app.noteable.world/api/token
+Get your API token from Noteable Within user settings.
+Within user settings, go to the API Token page, and generate a new token. 
+
+Copy the value
 
 ```python
 from origami.client import NoteableClient
 
-token = 'ey...' # from https://app.noteable.world/api/token
+token = 'ey...' # Your user API token
 async with NoteableClient(api_token=token) as client:
     await client.ping_rtu()
 ```
+
+### Token via Environment Variable
+
+Alternatively you can set the environment variable:
+
+```bash
+NOTEABLE_TOKEN=xxxx
+```
+
+and skip assigning the token:
+
+```python
+async with NoteableClient() as client:
+    await client.ping_rtu()
+```
+
+### Custom Domain
+
+```bash
+NOTEABLE_TOKEN=xxxx
+NOTEABLE_DOMAIN=app.noteable.io
+```
+
+And the client will use that particular domain, for custom deployment location. This value defaults to `app.noteable.io`.
+
+```python
+async with NoteableClient() as client:
+    await client.ping_rtu()
+```
+
+# --8<-- [end:start]
 
 ## Contributing
 
