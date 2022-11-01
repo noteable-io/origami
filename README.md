@@ -17,19 +17,19 @@ A library capturing message patterns and protocols speaking to Noteable's APIs
 
 [Install](#installation) | [Getting Started](#getting-started) | [License](./LICENSE) | [Code of Conduct](./CODE_OF_CONDUCT.md) | [Contributing](./CONTRIBUTING.md)
 
-# --8<-- [start:intro]
+<!-- --8<-- [start:intro] -->
 ## Intro to Origami
 
 Origami is our paper folding library for talking to Noteable notebooks. This is where we describe the full breadth of API calls and access patterns in async Python for rich programmatic access to the platform.
-# --8<-- [end:intro]
+<!-- --8<-- [end:intro] -->
 
-# --8<-- [start:requirements]
+<!-- --8<-- [start:requirements] -->
 ## Requirements
 
 Python 3.8+
-# --8<-- [end:requirements]
+<!-- --8<-- [end:requirements] -->
 
-# --8<-- [start:install]
+<!-- --8<-- [start:install] -->
 ## Installation
 
 ### Poetry
@@ -43,9 +43,9 @@ poetry add noteable-origami
 ```shell
 pip install noteable-origami
 ```
-# --8<-- [end:install]
+<!-- --8<-- [end:install] -->
 
-# --8<-- [start:start]
+<!-- --8<-- [start:start] -->
 ## Getting Started
 
 Get your API token from Noteable Within user settings.
@@ -90,7 +90,7 @@ async with NoteableClient() as client:
     await client.ping_rtu()
 ```
 
-# --8<-- [end:start]
+<!-- --8<-- [end:start] -->
 
 ## Contributing
 
