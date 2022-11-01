@@ -72,6 +72,7 @@ class AccessLevelAction(enum.Enum):
     read_job_definitions = enum.auto()
     update_job_definition = enum.auto()
     delete_job_definition = enum.auto()
+    update_job_instance_attempt = enum.auto()
 
     # NotebookFile comment actions
     view_comments = enum.auto()
