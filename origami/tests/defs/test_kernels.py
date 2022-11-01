@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from origami.types.access_levels import Visibility
-from origami.types.files import FileType, NotebookFile
-from origami.types.kernels import SessionRequestDetails
+from origami.defs.access_levels import Visibility
+from origami.defs.files import FileType, NotebookFile
+from origami.defs.kernels import SessionRequestDetails
 
 
 @pytest.fixture()

@@ -22,3 +22,21 @@ Please note we have a [code of conduct](./CODE_OF_CONDUCT.md), please follow it 
 4. Ensure [`poetry`](https://python-poetry.org/docs/#installation) is installed.
 5. Run `poetry install`.
 6. Run `nox -s test` to run all tests.
+
+## Project layout
+
+The project strucute follows this pattern:
+
+```
+   pyproject.toml # The repository toml for setup instructions
+   mkdocs.yml     # The configuration file
+   docs/
+      index.md    # The documentation homepage.
+      ...         # Other markdown pages, images and other files
+   origami/
+      defs/       # Definitions for various pydantic types used
+      tests/      # Unittests for the library
+      client.py   # The primary client module
+      format.py   # Notebook formatting helpers
+      pathing.py  # Pathing utilities
+```

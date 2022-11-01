@@ -19,19 +19,19 @@ from httpx import ReadTimeout
 from nbclient.util import run_sync
 from pydantic import BaseModel, BaseSettings, ValidationError
 
-from origami.types.deltas import NBMetadataProperties, V2CellMetadataProperties
-from origami.types.rtu import BulkCellStateMessage
+from origami.defs.deltas import NBMetadataProperties, V2CellMetadataProperties
+from origami.defs.rtu import BulkCellStateMessage
 
-from .types.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
-from .types.files import FileVersion, NotebookFile
-from .types.jobs import (
+from .defs.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
+from .defs.files import FileVersion, NotebookFile
+from .defs.jobs import (
     CreateParameterizedNotebookRequest,
     CustomerJobInstanceReference,
     CustomerJobInstanceReferenceInput,
     JobInstanceAttempt,
 )
-from .types.kernels import SessionRequestDetails
-from .types.rtu import (
+from .defs.kernels import SessionRequestDetails
+from .defs.rtu import (
     RTU_ERROR_HARD_MESSAGE_TYPES,
     RTU_MESSAGE_TYPES,
     AuthenticationReply,
@@ -79,10 +79,10 @@ class ClientConfig(BaseModel):
 
     client_id: str = ""
     client_secret: str = ""
-    domain: str = "app.noteable.world"
+    domain: str = "app.noteable.io"
     backend_path: str = "gate/api/"
     auth0_domain: str = ""
-    audience: str = "https://apps.noteable.world/gate"
+    audience: str = "https://app.noteable.io/gate"
     ws_timeout: int = 10
 
 
