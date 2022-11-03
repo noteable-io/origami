@@ -82,7 +82,7 @@ class ClientConfig(BaseModel):
     http_protocol: str = "https"
     websocket_protocol: str = "wss"
     domain: str = "app.noteable.io"
-    backend_path: str = "gate/api/"
+    backend_path: str = "gate/api"
     auth0_domain: str = ""
     audience: str = "https://app.noteable.io/gate"
     ws_timeout: int = 10
@@ -151,6 +151,7 @@ class NoteableClient(httpx.AsyncClient):
         self.config.websocket_protocol = os.getenv(
             "NOTEABLE_WEBSOCKET_PROTOCOL", self.config.websocket_protocol
         )
+        self.config.backend_path = os.getenv("NOTEABLE_BACKEND_PATH", self.config.backend_path)
         self.file_session_cache = {}
 
         self.user = None
@@ -184,12 +185,12 @@ class NoteableClient(httpx.AsyncClient):
     @property
     def ws_uri(self):
         """Formats the websocket URI out of the notable domain name."""
-        return f"{self.config.websocket_protocol}://{self.config.domain}/gate/api/v1/rtu"
+        return f"{self.config.websocket_protocol}://{self.config.domain}/{self.config.backend_path}/v1/rtu"
 
     @property
     def api_server_uri(self):
         """Formats the http API URI out of the notable domain name."""
-        return f"{self.config.http_protocol}://{self.config.domain}/gate/api"
+        return f"{self.config.http_protocol}://{self.config.domain}/{self.config.backend_path}"
 
     def get_token(self):
         """Fetches and api token using oauth client config settings.
