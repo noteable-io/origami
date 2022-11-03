@@ -79,6 +79,8 @@ class ClientConfig(BaseModel):
 
     client_id: str = ""
     client_secret: str = ""
+    http_protocol: str = "https"
+    websocket_protocol: str = "wss"
     domain: str = "app.noteable.io"
     backend_path: str = "gate/api/"
     auth0_domain: str = ""
@@ -145,6 +147,10 @@ class NoteableClient(httpx.AsyncClient):
 
         self.config = config
         self.config.domain = os.getenv("NOTEABLE_DOMAIN", self.config.domain)
+        self.config.http_protocol = os.getenv("NOTEABLE_HTTP_PROTOCOL", self.config.http_protocol)
+        self.config.websocket_protocol = os.getenv(
+            "NOTEABLE_WEBSOCKET_PROTOCOL", self.config.websocket_protocol
+        )
         self.file_session_cache = {}
 
         self.user = None
@@ -164,7 +170,7 @@ class NoteableClient(httpx.AsyncClient):
         # channel -> transaction_id -> callback_queue
         self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         super().__init__(
-            base_url=f"https://{self.config.domain}/",
+            base_url=f"{self.config.http_protocol}://{self.config.domain}/",
             follow_redirects=follow_redirects,
             headers=headers,
             **kwargs,
@@ -173,17 +179,17 @@ class NoteableClient(httpx.AsyncClient):
     @property
     def origin(self):
         """Formats the domain in an origin string for websocket headers."""
-        return f'https://{self.config.domain}'
+        return f'{self.config.http_protocol}://{self.config.domain}'
 
     @property
     def ws_uri(self):
         """Formats the websocket URI out of the notable domain name."""
-        return f"wss://{self.config.domain}/gate/api/v1/rtu"
+        return f"{self.config.websocket_protocol}://{self.config.domain}/gate/api/v1/rtu"
 
     @property
     def api_server_uri(self):
-        """Formats the websocket URI out of the notable domain name."""
-        return f"https://{self.config.domain}/gate/api"
+        """Formats the http API URI out of the notable domain name."""
+        return f"{self.config.http_protocol}://{self.config.domain}/gate/api"
 
     def get_token(self):
         """Fetches and api token using oauth client config settings.
