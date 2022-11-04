@@ -42,11 +42,11 @@ class AccessLevelAction(enum.Enum):
     read = enum.auto()
     update = enum.auto()
     delete = enum.auto()
-    restore = enum.auto()
 
     # Space specific actions
     create_project = enum.auto()
     create_dataset = enum.auto()
+    publish_files = enum.auto()
     view_projects = enum.auto()
     view_datasets = enum.auto()
     modify_space_users = enum.auto()
