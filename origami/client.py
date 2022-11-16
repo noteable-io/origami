@@ -397,7 +397,7 @@ class NoteableClient(httpx.AsyncClient):
         job_instance_attempt_update: JobInstanceAttemptUpdate,
         timeout: float = None,
     ) -> JobInstanceAttempt:
-        """Update a job instance in Noteable."""
+        """Update the status of a job instance attempt by id"""
         resp = await self.patch(
             f"{self.api_server_uri}/v1/job-instance-attempts/{job_instance_attempt_id}",
             content=job_instance_attempt_update,
