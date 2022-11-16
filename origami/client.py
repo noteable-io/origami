@@ -3,6 +3,7 @@
 import asyncio
 import functools
 import os
+import uuid
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
@@ -30,6 +31,8 @@ from .defs.jobs import (
     CustomerJobInstanceReference,
     CustomerJobInstanceReferenceInput,
     JobInstanceAttempt,
+    JobInstanceAttemptRequest,
+    JobInstanceAttemptUpdate,
 )
 from .defs.kernels import SessionRequestDetails
 from .defs.rtu import (
@@ -337,7 +340,7 @@ class NoteableClient(httpx.AsyncClient):
     async def create_parameterized_notebook(
         self,
         notebook_id: UUID,
-        job_instance_attempt: JobInstanceAttempt = None,
+        job_instance_attempt: JobInstanceAttemptRequest = None,
         timeout: float = None,
     ) -> CreateParameterizedNotebookResponse:
         """
@@ -362,7 +365,9 @@ class NoteableClient(httpx.AsyncClient):
         parameterized_notebook.content = httpx.get(
             parameterized_notebook.presigned_download_url
         ).content.decode("utf-8")
-        job_instance_attempt = JobInstanceAttempt.parse_obj(resp_data['job_instance_attempt'])
+        job_instance_attempt = JobInstanceAttemptRequest.parse_obj(
+            resp_data['job_instance_attempt']
+        )
 
         return CreateParameterizedNotebookResponse(
             parameterized_notebook=parameterized_notebook, job_instance_attempt=job_instance_attempt
@@ -384,6 +389,22 @@ class NoteableClient(httpx.AsyncClient):
         )
         resp.raise_for_status()
         return CustomerJobInstanceReference.parse_obj(resp.json())
+
+    @_default_timeout_arg
+    async def update_job_instance(
+        self,
+        job_instance_attempt_id: uuid.UUID,
+        job_instance_attempt_update: JobInstanceAttemptUpdate,
+        timeout: float = None,
+    ) -> JobInstanceAttempt:
+        """Update a job instance in Noteable."""
+        resp = await self.patch(
+            f"{self.api_server_uri}/v1/job-instance-attempts/{job_instance_attempt_id}",
+            content=job_instance_attempt_update,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return JobInstanceAttempt.parse_obj(resp.json())
 
     @property
     def in_context(self):
