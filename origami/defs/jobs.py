@@ -5,6 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, root_validator
 
+from .files import NotebookFile
 from .models import NoteableAPIModel
 
 _last_triggered_by_doc = "Any string that can be used to identify the last user to trigger the job in the orchestration system."  # noqa: E501
@@ -162,3 +163,16 @@ class CreateParameterizedNotebookRequest(BaseModel):
 
     notebook_version_id: Optional[uuid.UUID]
     job_instance_attempt: Optional[JobInstanceAttempt]
+
+
+class CreateParameterizedNotebookResponse(BaseModel):
+    """The response to a request to create a parameterized notebook.
+
+    Return the created job instance attempt here to provide the id to the client for any further job instance attempt
+    status updates.
+    """
+
+    parameterized_notebook: NotebookFile
+    job_instance_attempt: Optional[JobInstanceAttempt] = Field(
+        description="The job instance attempt associated with the parameterized notebook."
+    )

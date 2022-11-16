@@ -26,6 +26,7 @@ from .defs.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2Cel
 from .defs.files import FileVersion, NotebookFile
 from .defs.jobs import (
     CreateParameterizedNotebookRequest,
+    CreateParameterizedNotebookResponse,
     CustomerJobInstanceReference,
     CustomerJobInstanceReferenceInput,
     JobInstanceAttempt,
@@ -338,7 +339,7 @@ class NoteableClient(httpx.AsyncClient):
         notebook_id: UUID,
         job_instance_attempt: JobInstanceAttempt = None,
         timeout: float = None,
-    ):
+    ) -> CreateParameterizedNotebookResponse:
         """
         Creates a parameterized_notebook given a notebook version id or a notebook file id.
 
@@ -356,9 +357,16 @@ class NoteableClient(httpx.AsyncClient):
             timeout=timeout,
         )
         resp.raise_for_status()
-        file: NotebookFile = NotebookFile.parse_obj(resp.json())
-        file.content = httpx.get(file.presigned_download_url).content.decode("utf-8")
-        return file
+        resp_data = resp.json()
+        parameterized_notebook = NotebookFile.parse_obj(resp_data['parameterized_notebook'])
+        parameterized_notebook.content = httpx.get(
+            parameterized_notebook.presigned_download_url
+        ).content.decode("utf-8")
+        job_instance_attempt = JobInstanceAttempt.parse_obj(resp_data['job_instance_attempt'])
+
+        return CreateParameterizedNotebookResponse(
+            parameterized_notebook=parameterized_notebook, job_instance_attempt=job_instance_attempt
+        )
 
     @_default_timeout_arg
     async def create_job_instance(
