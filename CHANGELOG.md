@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.13] - 2022-11-03
 ### Added
 - Use `backend_path` config value when making API requests to Noteable
+- Added `update_job_instance` client method
+
+### Changed
+- Refactor create_parameterized_notebook to include job instance attempt information
 
 ## [0.0.12] - 2022-11-03
 ### Added
