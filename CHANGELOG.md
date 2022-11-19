@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.15] - 2022-11-18
+### Added
+- Added `update_job_instance` client method
+
+### Changed
+- Refactor create_parameterized_notebook to include job instance attempt information
+
 ## [0.0.13] - 2022-11-03
 ### Added
 - Use `backend_path` config value when making API requests to Noteable

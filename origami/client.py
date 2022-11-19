@@ -3,6 +3,7 @@
 import asyncio
 import functools
 import os
+import uuid
 from asyncio import Future
 from collections import defaultdict
 from datetime import datetime
@@ -30,6 +31,8 @@ from .defs.jobs import (
     CustomerJobInstanceReference,
     CustomerJobInstanceReferenceInput,
     JobInstanceAttempt,
+    JobInstanceAttemptRequest,
+    JobInstanceAttemptUpdate,
 )
 from .defs.kernels import SessionRequestDetails
 from .defs.rtu import (
@@ -337,7 +340,7 @@ class NoteableClient(httpx.AsyncClient):
     async def create_parameterized_notebook(
         self,
         notebook_id: UUID,
-        job_instance_attempt: JobInstanceAttempt = None,
+        job_instance_attempt: JobInstanceAttemptRequest = None,
         timeout: float = None,
     ) -> CreateParameterizedNotebookResponse:
         """
@@ -362,7 +365,11 @@ class NoteableClient(httpx.AsyncClient):
         parameterized_notebook.content = httpx.get(
             parameterized_notebook.presigned_download_url
         ).content.decode("utf-8")
-        job_instance_attempt = JobInstanceAttempt.parse_obj(resp_data['job_instance_attempt'])
+        job_instance_attempt = (
+            JobInstanceAttempt.parse_obj(resp_data['job_instance_attempt'])
+            if resp_data['job_instance_attempt']
+            else None
+        )
 
         return CreateParameterizedNotebookResponse(
             parameterized_notebook=parameterized_notebook, job_instance_attempt=job_instance_attempt
@@ -384,6 +391,22 @@ class NoteableClient(httpx.AsyncClient):
         )
         resp.raise_for_status()
         return CustomerJobInstanceReference.parse_obj(resp.json())
+
+    @_default_timeout_arg
+    async def update_job_instance(
+        self,
+        job_instance_attempt_id: uuid.UUID,
+        job_instance_attempt_update: JobInstanceAttemptUpdate,
+        timeout: float = None,
+    ) -> JobInstanceAttempt:
+        """Update the status of a job instance attempt by id"""
+        resp = await self.patch(
+            f"{self.api_server_uri}/v1/job-instance-attempts/{job_instance_attempt_id}",
+            content=job_instance_attempt_update.json(exclude_unset=True),
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return JobInstanceAttempt.parse_obj(resp.json())
 
     @property
     def in_context(self):
@@ -784,7 +807,18 @@ class NoteableClient(httpx.AsyncClient):
             cell_id,
             properties=metadata_update_properties,
         )
-        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        # Explicitly register the message callback here against the message_type of new_delta_reply
+        # since using FileDeltaReply.register_callback will register against the transaction_id
+        # which fails because there is a `new_delta_event` message type that is sent before the
+        # `new_delta_reply` message type from the same transaction_id.
+        # This breaks the schema validation because the `new_delta_event` message type does not
+        # have a `data.success` field.
+        tracker = self.register_message_callback(
+            check_success,
+            channel=self.files_channel(file.id),
+            message_type="new_delta_reply",
+            response_schema=FileDeltaReply,
+        )
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 
@@ -806,7 +840,12 @@ class NoteableClient(httpx.AsyncClient):
             FileDeltaAction.update,
             properties=metadata_update_properties,
         )
-        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        tracker = self.register_message_callback(
+            check_success,
+            channel=self.files_channel(file.id),
+            message_type="new_delta_reply",
+            response_schema=FileDeltaReply,
+        )
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 

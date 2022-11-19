@@ -126,7 +126,7 @@ class JobInstanceAttemptStatus(str, enum.Enum):
         return self.value
 
 
-class JobInstanceAttempt(BaseModel):
+class JobInstanceAttemptRequest(BaseModel):
     """
     Represents an attempt to execute a job.
 
@@ -162,7 +162,20 @@ class CreateParameterizedNotebookRequest(BaseModel):
     """
 
     notebook_version_id: Optional[uuid.UUID]
-    job_instance_attempt: Optional[JobInstanceAttempt]
+    job_instance_attempt: Optional[JobInstanceAttemptRequest]
+
+
+class JobInstanceAttempt(NoteableAPIModel):
+    """Represents a job instance attempt returned by the Noteable API."""
+
+    noteable_job_instance_id: Optional[uuid.UUID]
+    customer_job_instance_reference_id: Optional[uuid.UUID]
+    status: JobInstanceAttemptStatus
+    attempt_number: int
+    parameterized_notebook_id: uuid.UUID
+
+    class Config:
+        orm_mode = True
 
 
 class CreateParameterizedNotebookResponse(BaseModel):
@@ -176,3 +189,7 @@ class CreateParameterizedNotebookResponse(BaseModel):
     job_instance_attempt: Optional[JobInstanceAttempt] = Field(
         description="The job instance attempt associated with the parameterized notebook."
     )
+
+
+class JobInstanceAttemptUpdate(BaseModel):
+    status: JobInstanceAttemptStatus = Field(description="The status of the job instance attempt.")
