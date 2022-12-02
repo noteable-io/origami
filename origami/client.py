@@ -363,7 +363,9 @@ class NoteableClient(httpx.AsyncClient):
         resp_data = resp.json()
 
         # Use .get(...) for backwards compatibility with old API which returns the NotebookFile as the response
-        parameterized_notebook = NotebookFile.parse_obj(resp_data.get('parameterized_notebook', resp_data))
+        parameterized_notebook = NotebookFile.parse_obj(
+            resp_data.get('parameterized_notebook', resp_data)
+        )
         parameterized_notebook.content = httpx.get(
             parameterized_notebook.presigned_download_url
         ).content.decode("utf-8")
