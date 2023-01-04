@@ -636,7 +636,6 @@ class NoteableClient(httpx.AsyncClient):
     async def _reconnect_rtu(self):
         """Reconnects the RTU websocket connection."""
         await self._connect_rtu_socket()
-        await self.rtu_socket.ensure_open()
         if not self.reconnect_rtu_task:
             self.reconnect_rtu_task = asyncio.create_task(self._resubscribe_channels())
 
