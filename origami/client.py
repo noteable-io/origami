@@ -16,9 +16,11 @@ import httpx
 import jwt
 import structlog
 import websockets
+import websockets.exceptions
 from httpx import ReadTimeout
 from nbclient.util import run_sync
 from pydantic import BaseModel, BaseSettings, ValidationError
+from websockets.legacy.client import WebSocketClientProtocol
 
 from origami.defs.deltas import NBMetadataProperties, V2CellMetadataProperties
 from origami.defs.rtu import BulkCellStateMessage
@@ -162,7 +164,7 @@ class NoteableClient(httpx.AsyncClient):
         self.token = api_token or os.getenv("NOTEABLE_TOKEN") or self.get_token()
         if isinstance(self.token, str):
             self.token = Token(access_token=self.token)
-        self.rtu_socket = None
+        self.rtu_socket: WebSocketClientProtocol = None
         self.process_task_loop = None
 
         headers = kwargs.pop('headers', {})
@@ -180,6 +182,8 @@ class NoteableClient(httpx.AsyncClient):
             headers=headers,
             **kwargs,
         )
+
+        self.rehydrate_task = None
 
     @property
     def origin(self):
@@ -272,6 +276,9 @@ class NoteableClient(httpx.AsyncClient):
         self.file_session_cache[file.id] = session
         return session
 
+    @backoff.on_exception(
+        backoff.expo, asyncio.exceptions.TimeoutError, max_time=EXP_BACKOFF_MAX_TIME
+    )
     async def get_or_launch_ready_kernel_session(
         self,
         file: NotebookFile,
@@ -397,6 +404,7 @@ class NoteableClient(httpx.AsyncClient):
         return CustomerJobInstanceReference.parse_obj(resp.json())
 
     @_default_timeout_arg
+    @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
     async def update_job_instance(
         self,
         job_instance_attempt_id: uuid.UUID,
@@ -427,9 +435,8 @@ class NoteableClient(httpx.AsyncClient):
         validate and extract principal-user-id from the token.
         """
         res = await httpx.AsyncClient.__aenter__(self)
-        # Origin is needed, else the server request crashes and rejects the connection
-        headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
-        self.rtu_socket = await websockets.connect(self.ws_uri, extra_headers=headers)
+        # Create a new RTU socket for this context
+        await self._connect_rtu_socket()
         # Loop indefinitely over the incoming websocket messages
         self.process_task_loop = asyncio.create_task(self._process_messages())
         # Authenticate for more advanced API calls
@@ -595,8 +602,12 @@ class NoteableClient(httpx.AsyncClient):
                     logger.debug(
                         f"Callable for {channel}/{event} was a {'successful' if processed else 'failed'} match"
                     )
-
-            except websockets.exceptions.ConnectionClosed:
+            except websockets.exceptions.ConnectionClosedError:
+                await asyncio.sleep(0)
+                logger.exception("Websocket connection closed unexpectedly; reconnecting")
+                await self._reconnect_rtu()
+                continue
+            except websockets.exceptions.ConnectionClosedOK:
                 await asyncio.sleep(0)
                 break
             except Exception:
@@ -604,11 +615,47 @@ class NoteableClient(httpx.AsyncClient):
                 await asyncio.sleep(0)
                 break
 
+    async def _connect_rtu_socket(self):
+        """Opens a websocket connection to Noteable RTU."""
+        # Origin is needed, else the server request crashes and rejects the connection
+        headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
+        self.rtu_socket = await websockets.connect(self.ws_uri, extra_headers=headers)
+        logger.debug("Opened websocket connection")
+
+    async def _resubscribe_channels(self):
+        """Rehydrates the session by re-authenticating and re-subscribing to all channels."""
+        await self.authenticate()
+        for channel in self.subscriptions:
+            # Only re-subscribe to the files channels
+            if channel.startswith("files/"):
+                await self.subscribe_file(channel.split('/')[1])
+
+        # set rehydrate_task to None so that the next connection failure will trigger a new rehydrate
+        self.rehydrate_task = None
+
+    async def _reconnect_rtu(self):
+        """Reconnects the RTU websocket connection."""
+        await self._connect_rtu_socket()
+        await self.rtu_socket.ensure_open()
+        if not self.rehydrate_task:
+            self.rehydrate_task = asyncio.create_task(self._resubscribe_channels())
+
     @_requires_ws_context
+    @backoff.on_exception(
+        backoff.expo, websockets.exceptions.ConnectionClosedError, max_time=EXP_BACKOFF_MAX_TIME
+    )
     async def send_rtu_request(self, req: GenericRTURequestSchema):
-        """Wraps converting a pydantic request model to be send down the websocket."""
+        """Wraps converting a pydantic request model to be sent down the websocket."""
         logger.debug(f"Sending websocket request: {req}")
-        return await self.rtu_socket.send(req.json())
+        try:
+            return await self.rtu_socket.send(req.json())
+        except websockets.exceptions.ConnectionClosedError:
+            logger.debug(
+                "Websocket connection closed unexpectedly while trying to send RTU request; reconnecting"
+            )
+            await self._reconnect_rtu()
+            # Raise the exception to trigger backoff
+            raise
 
     @_requires_ws_context
     @_default_timeout_arg
