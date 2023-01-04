@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17] - 2023-01-04
+### Added
+- Handle websocket ConnectionClosedErrors in the process messages infinite loop:
+  - reconnect to the RTU websocket
+  - handle authentication
+  - resubscribe to all the previously subscribed channels
+- Add backoff retry to `send_rtu_request` when a `ConnectionClosedError` is raised, and reconnect to RTU before retrying.
+- Add backoff retry to `update_job_instance` on `ReadTimeout` error
+- Add backoff retry to `get_or_launch_ready_kernel_session` on `TimeoutError`.
+
 ## [0.0.16] - 2022-12-02
 ### Fixed
 - Fix API incompatibility when creating a parameterized notebook
