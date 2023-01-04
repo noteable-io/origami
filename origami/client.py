@@ -630,14 +630,14 @@ class NoteableClient(httpx.AsyncClient):
             if channel.startswith("files/"):
                 await self.subscribe_file(channel.split('/')[1])
 
-        # set rehydrate_task to None so that the next connection failure will trigger a new rehydrate
-        self.reconnect_rtu_task = None
-
     async def _reconnect_rtu(self):
         """Reconnects the RTU websocket connection."""
         await self._connect_rtu_socket()
         if not self.reconnect_rtu_task:
             self.reconnect_rtu_task = asyncio.create_task(self._resubscribe_channels())
+
+            # set rehydrate_task to None so that the next connection failure will trigger a new rehydrate
+            self.reconnect_rtu_task = None
 
     @_requires_ws_context
     @backoff.on_exception(
