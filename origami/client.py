@@ -183,7 +183,7 @@ class NoteableClient(httpx.AsyncClient):
             **kwargs,
         )
 
-        self.rehydrate_task = None
+        self.reconnect_rtu_task = None
 
     @property
     def origin(self):
@@ -631,14 +631,14 @@ class NoteableClient(httpx.AsyncClient):
                 await self.subscribe_file(channel.split('/')[1])
 
         # set rehydrate_task to None so that the next connection failure will trigger a new rehydrate
-        self.rehydrate_task = None
+        self.reconnect_rtu_task = None
 
     async def _reconnect_rtu(self):
         """Reconnects the RTU websocket connection."""
         await self._connect_rtu_socket()
         await self.rtu_socket.ensure_open()
-        if not self.rehydrate_task:
-            self.rehydrate_task = asyncio.create_task(self._resubscribe_channels())
+        if not self.reconnect_rtu_task:
+            self.reconnect_rtu_task = asyncio.create_task(self._resubscribe_channels())
 
     @_requires_ws_context
     @backoff.on_exception(
