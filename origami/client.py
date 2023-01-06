@@ -529,6 +529,7 @@ class NoteableClient(httpx.AsyncClient):
                     if not tracker.next_trigger.cancelled():
                         tracker.next_trigger.set_exception(e)
                     else:
+                        # Technically this case is impossible, but keeping it here for completeness
                         logger.debug("Skipped setting exception due to future cancellation")
 
             if skipped or not tracker.once:
