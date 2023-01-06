@@ -513,9 +513,12 @@ class NoteableClient(httpx.AsyncClient):
                     resp = RTU_MESSAGE_TYPES[tracker.message_type].parse_obj(resp)
 
                 try:
-                    result = await callable(resp)
-                    tracker.count += 1
-                    tracker.next_trigger.set_result(result)
+                    if not tracker.next_trigger.cancelled():
+                        result = await callable(resp)
+                        tracker.count += 1
+                        tracker.next_trigger.set_result(result)
+                    else:
+                        logger.debug("Skipped setting result due to future cancellation")
                 except SkipCallback:
                     # Allow for skipping if conditions were not met
                     skipped = True
@@ -523,7 +526,11 @@ class NoteableClient(httpx.AsyncClient):
                     logger.exception("Registered callback failed")
                     failed = True
                     tracker.count += 1
-                    tracker.next_trigger.set_exception(e)
+                    if not tracker.next_trigger.cancelled():
+                        tracker.next_trigger.set_exception(e)
+                    else:
+                        logger.debug("Skipped setting exception due to future cancellation")
+
             if skipped or not tracker.once:
                 # Reset the next trigger promise
                 if not skipped:

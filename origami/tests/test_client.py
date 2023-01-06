@@ -1,5 +1,5 @@
 """Tests for the async noteable client calls."""
-
+import asyncio
 import json
 import os
 from datetime import datetime
@@ -191,3 +191,63 @@ async def test_file_subscribe(connect_mock, client):
     assert resp.data.success == True
     assert resp.channel == 'files/fake-id'
     assert resp.channel in client.subscriptions
+
+
+@pytest.fixture
+def mock_rtu_socket():
+    mock_rtu_socket = AsyncMock()
+    mock_rtu_socket.recv.return_value = AsyncMock()
+    return mock_rtu_socket
+
+
+@pytest.fixture
+def noteable_client(mock_rtu_socket):
+    noteable_client = NoteableClient()
+    noteable_client._connect_rtu_socket = AsyncMock()
+    noteable_client.authenticate = AsyncMock()
+    noteable_client.rtu_socket = mock_rtu_socket
+
+    return noteable_client
+
+
+@pytest.mark.asyncio
+async def test_setting_callback_result_on_cancelled_future_does_not_break_process_loop(
+    noteable_client, mock_rtu_socket
+):
+    """Test that when a callback result is set on a cancelled future, it does not break the process loop"""
+
+    async def callback(msg):
+        return msg
+
+    with noteable_client as nc:
+        tracker = nc.register_message_callback(
+            callback,
+            channel="fake-channel",
+            message_type="new_delta_reply",
+        )
+
+        # Let's imagine that we sent a request over RTU
+
+        # Let's wait for response to come in and then timeout,
+        # which should cancel the tracker.next_trigger future.
+        try:
+            await asyncio.wait_for(tracker.next_trigger, 1)
+        except asyncio.TimeoutError:
+            pass
+
+        # Simulate a response coming in
+        mock_rtu_socket.recv.return_value = GenericRTUReply(
+            msg_id=uuid4(),
+            transaction_id=uuid4(),
+            event="new_delta_reply",
+            channel="fake-channel",
+            data={"success": True},
+            processed_timestamp=datetime.now(),
+        ).json()
+
+        # Let the _process_messages task run and handle the response
+        await asyncio.sleep(1)
+
+        # At this point, the callback should have been called
+        # and the process_task_loop should not have broken
+        assert not nc.process_task_loop.done()
