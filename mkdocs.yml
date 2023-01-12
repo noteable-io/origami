@@ -28,6 +28,7 @@ nav:
   - Contributing: 'contributing.md'
   - Usage:
       - QuickStart: 'quickstart.md'
+      - NoteableClient: 'client.md'
   - Code Reference: reference/
   - Changes:
       - Log: 'changelog.md'

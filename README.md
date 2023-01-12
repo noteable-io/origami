@@ -20,7 +20,7 @@ A library capturing message patterns and protocols speaking to Noteable's APIs
 <!-- --8<-- [start:intro] -->
 ## Intro to Origami
 
-Origami is our paper folding library for talking to Noteable notebooks. This is where we describe the full breadth of API calls and access patterns in async Python for rich programmatic access to the platform.
+Origami is our paper folding library for talking to [Noteable notebooks](http://noteable.io/). This is where we describe the full breadth of API calls and access patterns in async Python for rich programmatic access to the platform. You can use the platform for free with a quick signup.
 <!-- --8<-- [end:intro] -->
 
 <!-- --8<-- [start:requirements] -->
