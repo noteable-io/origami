@@ -21,7 +21,6 @@ def file():
         type=FileType.notebook,
         created_by_id=uuid.uuid4(),
         visibility=Visibility.private,
-        is_playground_mode_file=False,
         space_id=uuid.uuid4(),
         file_store_path=f"{project_id}/folder/hello world.ipynb",
         content={"metadata": {}},

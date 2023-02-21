@@ -181,7 +181,6 @@ class NotebookFile(FileRBACModel):
     visibility: Visibility
     visibility_default_access_level: Optional[AccessLevel]
     source_file_id: Optional[UUID]
-    is_playground_mode_file: bool
     space_id: UUID
     project_user_access_level: Optional[AccessLevel]
     space_user_access_level: Optional[AccessLevel]
