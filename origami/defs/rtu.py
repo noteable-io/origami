@@ -313,7 +313,6 @@ class CellStateMessageData(BaseModel):
 
 
 class BulkCellStateMessageData(BaseModel):
-
     cell_states: List[CellStateMessageData]
 
 
