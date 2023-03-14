@@ -65,6 +65,7 @@ class AccessLevelAction(enum.Enum):
     create_file_version = enum.auto()
     create_file_sandbox = enum.auto()
     create_parameterized_notebook = enum.auto()
+    manage_public_output_collection = enum.auto()
     rename = enum.auto()
 
     # File job specific actions
