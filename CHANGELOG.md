@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.21] - 2023-03-14
+### Added
+- Added `manage_public_output_collection` to `AccessLevelAction` enum
+
 ## [0.0.20] - 2023-03-01
 ### Changed
 - Upgrade dependencies
