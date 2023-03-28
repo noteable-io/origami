@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.22] - 2023-03-28
+### Changed
+- Allow any list of strings as actions allowed/denied in `ResourceData` model. This is to allow for new actions that may be added in the future and avoid having to update the enum here every time.
+
 ## [0.0.21] - 2023-03-14
 ### Added
 - Added `manage_public_output_collection` to `AccessLevelAction` enum
