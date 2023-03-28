@@ -127,9 +127,10 @@ class ResourceData(BaseModel):
     """The representation of a resouce's available actions."""
 
     # actions_allowed are all the possible actions for this object that are allowed
-    actions_allowed: List[AccessLevelAction]
+    # Allow any string to avoid having to update AccessLevelAction every time a new action is added.
+    actions_allowed: List[str]
     # actions_denied are all the possible actions for this object that are not allowed
-    actions_denied: List[AccessLevelAction]
+    actions_denied: List[str]
     # the access level the user effectively had on the resource, implicit or explicit
     effective_access_level: Optional[AccessLevel] = None
 
