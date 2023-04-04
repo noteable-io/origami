@@ -610,14 +610,11 @@ class NoteableClient(httpx.AsyncClient):
                     logger.debug(
                         f"Callable for {channel}/{event} was a {'successful' if processed else 'failed'} match"
                     )
-            except websockets.exceptions.ConnectionClosedError:
+            except websockets.exceptions.ConnectionClosed:
                 await asyncio.sleep(0)
-                logger.exception("Websocket connection closed unexpectedly; reconnecting")
+                logger.exception("Websocket connection closed; reconnecting")
                 await self._reconnect_rtu()
                 continue
-            except websockets.exceptions.ConnectionClosedOK:
-                await asyncio.sleep(0)
-                break
             except Exception:
                 logger.exception("Unexpected callback failure")
                 await asyncio.sleep(0)
