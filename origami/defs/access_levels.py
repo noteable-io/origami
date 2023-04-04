@@ -16,7 +16,6 @@ class AccessLevel(enum.Enum):
     contributor = "role:contributor"
     commenter = "role:commenter"
     viewer = "role:viewer"
-    anonymous = "role:anonymous"
     executor = "role:executor"
 
     @classmethod
