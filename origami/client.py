@@ -505,7 +505,8 @@ class NoteableClient(httpx.AsyncClient):
                 msg = resp.data['message']
                 logger.exception(f"Request failed: {msg}")
                 # TODO: Different exception class?
-                tracker.next_trigger.set_exception(ValueError(msg))
+                if not tracker.next_trigger.cancelled():
+                    tracker.next_trigger.set_exception(ValueError(msg))
             else:
                 if tracker.response_schema:
                     resp = tracker.response_schema.parse_obj(resp)
