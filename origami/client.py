@@ -505,7 +505,8 @@ class NoteableClient(httpx.AsyncClient):
                 msg = resp.data['message']
                 logger.exception(f"Request failed: {msg}")
                 # TODO: Different exception class?
-                tracker.next_trigger.set_exception(ValueError(msg))
+                if not tracker.next_trigger.cancelled():
+                    tracker.next_trigger.set_exception(ValueError(msg))
             else:
                 if tracker.response_schema:
                     resp = tracker.response_schema.parse_obj(resp)
@@ -610,14 +611,11 @@ class NoteableClient(httpx.AsyncClient):
                     logger.debug(
                         f"Callable for {channel}/{event} was a {'successful' if processed else 'failed'} match"
                     )
-            except websockets.exceptions.ConnectionClosedError:
+            except websockets.exceptions.ConnectionClosed:
                 await asyncio.sleep(0)
                 logger.exception("Websocket connection closed unexpectedly; reconnecting")
                 await self._reconnect_rtu()
                 continue
-            except websockets.exceptions.ConnectionClosedOK:
-                await asyncio.sleep(0)
-                break
             except Exception:
                 logger.exception("Unexpected callback failure")
                 await asyncio.sleep(0)
@@ -638,14 +636,14 @@ class NoteableClient(httpx.AsyncClient):
             if channel.startswith("files/"):
                 await self.subscribe_file(channel.split('/')[1])
 
+        # set to None so that the next connection failure will trigger a reconnect
+        self.reconnect_rtu_task = None
+
     async def _reconnect_rtu(self):
         """Reconnects the RTU websocket connection."""
         await self._connect_rtu_socket()
         if not self.reconnect_rtu_task:
             self.reconnect_rtu_task = asyncio.create_task(self._resubscribe_channels())
-
-            # set rehydrate_task to None so that the next connection failure will trigger a new rehydrate
-            self.reconnect_rtu_task = None
 
     @_requires_ws_context
     @backoff.on_exception(

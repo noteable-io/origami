@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.23] - 2023-04-04
+## Fixed
+- Check whether `next_trigger` future is canceled before setting exception on it, which raises an `asyncio.InvalidStateError` if the future is already canceled.
+- Retry websocket connection on `ConnectionClosedOK` and `ConnectionClosedError` errors.
+- Fix the place where we reset `reconnect_rtu_task` to None
+
+## Changed
+- Removed `anonymous` role from `AccessLevel` enum
+- Removed `either_raw_or_url` validator from `KernelOutputContent`
 
 ## [0.0.22] - 2023-03-28
 ### Changed
