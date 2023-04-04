@@ -267,17 +267,6 @@ class KernelOutputContent(BaseModel):
     url: Optional[str] = None
     mimetype: str
 
-    @root_validator
-    def either_raw_or_url(cls, values):
-        """Validation to ensure we have content via raw value or a url fetch."""
-        assert any(
-            [values.get("raw") is not None, values.get("url") is not None]
-        ), "content must contain either raw data or a url"
-        assert not all(
-            [values.get("raw") is not None, values.get("url") is not None]
-        ), "content must contain either raw data or url, not both"
-        return values
-
 
 class OutputData(NoteableAPIModel):
     """The type information for specifying a renderable output message."""
