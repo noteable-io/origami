@@ -613,7 +613,7 @@ class NoteableClient(httpx.AsyncClient):
                     )
             except websockets.exceptions.ConnectionClosed:
                 await asyncio.sleep(0)
-                logger.exception("Websocket connection closed; reconnecting")
+                logger.exception("Websocket connection closed unexpectedly; reconnecting")
                 await self._reconnect_rtu()
                 continue
             except Exception:
