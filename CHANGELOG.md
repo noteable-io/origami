@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.23] - 2023-04-04
 ## Fixed
 - Check whether `next_trigger` future is canceled before setting exception on it, which raises an `asyncio.InvalidStateError` if the future is already canceled.
 - Retry websocket connection on `ConnectionClosedOK` and `ConnectionClosedError` errors.
