@@ -91,7 +91,7 @@ class ClientConfig(BaseModel):
     backend_path: str = "gate/api"
     auth0_domain: str = ""
     audience: str = "https://app.noteable.io/gate"
-    ws_timeout: int = 10
+    ws_timeout: int = 60
 
 
 class Token(BaseModel):
@@ -621,11 +621,14 @@ class NoteableClient(httpx.AsyncClient):
                 await asyncio.sleep(0)
                 break
 
-    async def _connect_rtu_socket(self):
+    @_default_timeout_arg
+    async def _connect_rtu_socket(self, timeout: float):
         """Opens a websocket connection to Noteable RTU."""
         # Origin is needed, else the server request crashes and rejects the connection
         headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
-        self.rtu_socket = await websockets.connect(self.ws_uri, extra_headers=headers)
+        self.rtu_socket = await websockets.connect(
+            self.ws_uri, extra_headers=headers, open_timeout=timeout
+        )
         logger.debug("Opened websocket connection")
 
     async def _resubscribe_channels(self):
