@@ -104,5 +104,12 @@ exclude_lines = ["if self.debug:",
                  "raise AssertionError",
                  "raise NotImplementedError",
                  "if __name__ == '__main__':"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "origami/tests",
+]
+asyncio_mode = "auto"
+
 ignore_errors = true
 omit = ["origami/_version.py"]
