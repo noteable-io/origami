@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## Changed
+- Increase `ClientConfig.ws_timeout` from 10s to 60s
+- Set `open_timeout` on `websockets.connect` in `NoteableClient._connect_rtu_socket`
+
 ## [0.0.23] - 2023-04-04
 ## Fixed
 - Check whether `next_trigger` future is canceled before setting exception on it, which raises an `asyncio.InvalidStateError` if the future is already canceled.
