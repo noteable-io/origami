@@ -109,6 +109,7 @@ exclude_lines = ["if self.debug:",
 testpaths = [
     "origami/tests",
 ]
+# https://pytest-asyncio.readthedocs.io/en/latest/reference/configuration.html#configuration
 asyncio_mode = "auto"
 
 ignore_errors = true
