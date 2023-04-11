@@ -66,10 +66,12 @@ async def client(connect_mock_with_auth_patched, client_config):
 
 
 @pytest.mark.asyncio
-async def test_client_websocket_context(connect_mock_with_auth_patched):
+async def test_client_websocket_context(connect_mock_with_auth_patched, client_config):
     async with NoteableClient('fake-token') as client:
         headers = {'Authorization': 'Bearer fake-token', 'Origin': client.origin}
-        connect_mock_with_auth_patched.assert_called_once_with(client.ws_uri, extra_headers=headers)
+        connect_mock_with_auth_patched.assert_called_once_with(
+            client.ws_uri, extra_headers=headers, open_timeout=client_config.ws_timeout
+        )
         connect_mock_with_auth_patched.return_value.recv.assert_called()
         connect_mock_with_auth_patched.return_value.close.assert_not_called()
     connect_mock_with_auth_patched.return_value.recv.assert_called()
