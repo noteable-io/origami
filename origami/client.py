@@ -839,7 +839,11 @@ class NoteableClient(httpx.AsyncClient):
             cell['id'],
             properties=NBCellProperties(id=cell['id'], cell=cell, after_id=after_id),
         )
-        tracker = FileDeltaReply.register_callback(self, req, check_success)
+        tracker = self.register_message_callback(
+            check_success,
+            channel=self.files_channel(file.id),
+            message_type="new_delta_reply",
+        )
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
 

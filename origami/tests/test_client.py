@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
+import nbformat.v4
 import pytest
 import pytest_asyncio
 
@@ -16,8 +17,10 @@ from origami.defs.jobs import (
 )
 
 from ..client import ClientConfig, NoteableClient
+from ..defs.files import NotebookFile
 from ..defs.rtu import (
     AuthenticationReply,
+    FileDeltaReply,
     FileSubscribeActionReplyData,
     FileSubscribeReplySchema,
     GenericRTUReply,
@@ -30,13 +33,13 @@ def extract_msg_transaction_id(msg):
     return UUID(json.loads(msg)['transaction_id'])
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def connect_mock():
     with patch('websockets.connect', new_callable=AsyncMock) as connect:
         yield connect
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def connect_mock_with_auth_patched(connect_mock):
     # Initially mock our auth request
     async def auth_reply(msg):
@@ -59,13 +62,12 @@ def client_config():
     return ClientConfig(domain="fake-domain")
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def client(connect_mock_with_auth_patched, client_config):
     async with NoteableClient('fake-token', config=client_config) as client:
         yield client
 
 
-@pytest.mark.asyncio
 async def test_client_websocket_context(connect_mock_with_auth_patched, client_config):
     async with NoteableClient('fake-token') as client:
         headers = {'Authorization': 'Bearer fake-token', 'Origin': client.origin}
@@ -90,7 +92,6 @@ def test_domain_is_loaded_from_env(client_config):
     assert client.config.domain == "https://example.com"
 
 
-@pytest.mark.asyncio
 async def test_client_ping(connect_mock, client):
     # The connect does a ping to ensure that the connection is healthy
     async def ping_reply(msg):
@@ -109,7 +110,6 @@ async def test_client_ping(connect_mock, client):
     assert pong.event == 'ping_reply'
 
 
-@pytest.mark.asyncio
 async def test_client_subscribe(connect_mock, client):
     # The connect does a ping to ensure that the connection is healthy
     async def sub_reply(msg):
@@ -130,7 +130,6 @@ async def test_client_subscribe(connect_mock, client):
     assert resp.channel == 'fake-channel'
 
 
-@pytest.mark.asyncio
 async def test_create_job_instance(httpx_mock, client: NoteableClient):
     job_instance_id = uuid4()
     space_id = uuid4()
@@ -171,7 +170,6 @@ async def test_create_job_instance(httpx_mock, client: NoteableClient):
 @pytest.mark.xfail(
     reason="AttributeError: 'str' object has no attribute 'current_version_id' in client.subscribe_file"
 )
-@pytest.mark.asyncio
 async def test_file_subscribe(connect_mock, client):
     # The connect does a ping to ensure that the connection is healthy
     async def sub_reply(msg):
@@ -195,6 +193,46 @@ async def test_file_subscribe(connect_mock, client):
     assert resp.channel in client.subscriptions
 
 
+async def test_add_cell_doesnt_fail_on_new_delta_event(connect_mock, client, file: NotebookFile):
+    """Tests that add_cell doesn't fail if it receives a new delta event before
+    a new delta reply"""
+
+    async def reply(msg):
+        req_id = extract_msg_transaction_id(msg)
+        connect_mock.return_value.recv.side_effect = [
+            GenericRTUReply(
+                event="new_delta_event",
+                channel=f"files/{file.id}",
+                transaction_id=req_id,
+                msg_id=uuid4(),
+                data={},
+                processed_timestamp=datetime.now(),
+            ).json(),
+            FileDeltaReply(
+                event="new_delta_reply",
+                channel=f"files/{file.id}",
+                # Callback is not checked against transaction_id so this can be anything
+                transaction_id=req_id,
+                msg_id=uuid4(),
+                data={"success": True},
+                processed_timestamp=datetime.now(),
+            ).json(),
+        ]
+
+    connect_mock.return_value.send.side_effect = reply
+
+    try:
+        resp = await client.add_cell(
+            file, cell=nbformat.v4.new_code_cell(source="print('hello world')"), after_id=None
+        )
+        assert resp.data.success
+        assert resp.channel == f"files/{file.id}"
+    except asyncio.TimeoutError:
+        pytest.fail("add_cell timed out -- possibly due to an unexpected callback failure")
+
+    assert not client.process_task_loop.done()
+
+
 @pytest.fixture
 def mock_rtu_socket():
     mock_rtu_socket = AsyncMock()
@@ -212,7 +250,6 @@ def noteable_client(mock_rtu_socket):
     return noteable_client
 
 
-@pytest.mark.asyncio
 async def test_setting_callback_result_on_cancelled_future_does_not_break_process_loop(
     noteable_client, mock_rtu_socket
 ):
