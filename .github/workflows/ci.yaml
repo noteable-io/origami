@@ -22,7 +22,7 @@ jobs:
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.2.1
+          poetry-version: 1.4.2
       - name: Install dependencies
         run: |
           poetry install --all-extras --with dev
@@ -33,6 +33,7 @@ jobs:
         run: nox -s generate_coverage_xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        
   lint:
     runs-on: ubuntu-20.04
     steps:
@@ -43,7 +44,7 @@ jobs:
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.2.1
+          poetry-version: 1.4.2
       - name: Install dependencies
         run: |
           poetry install --all-extras --with dev
