@@ -1,30 +1,9 @@
 """
-The RTU Client is the entrypoint for sending and receiving RTU messages from Gate.
-You can get a reference to this class from the dependency cache
- - planar_ally.dependencies.get_dependency_cache().rtu_client()
-
-## Example sending RTU message to Gate:
-```
-rtu_client = planar_ally.dependencies.get_dependency_cache().rtu_client()
-req = rtu.GenericRTURequest(...)
-rtu_client.send(req)
-```
-
-## Example attaching a new callback to this RTU Client:
-Three callback registrations are available, see RTUManager for more details:
- - vanilla Sending manager.register_callback
- - RTUManger custom manager.register_rtu_event_callback
- - RTUManger custom manager.register_delta_callback
-
-```
-async def handle_foo_deltas(msg: rtu.GenericRTUReply):
-    delta = deltas.FileDelta.parse_obj(msg.data)
-    # Do something with the delta
-rtu_client = planar_ally.dependencies.get_dependency_cache().rtu_client()
-rtu_client.register_delta_callback(handle_foo_deltas, delta_type="foo")
-```
+RTUClient is a high-level client for establishing a websocket connection, authenticating with a jwt,
+subscribing to a file by version or last delta id, "squashing" Deltas into an in-memory Notebook
+model, and registering callbacks for incoming RTU events by event_name and channel or incoming
+Deltas by delta type and delta action.
 """
-
 import asyncio
 import traceback
 import uuid
