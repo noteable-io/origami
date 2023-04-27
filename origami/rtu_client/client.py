@@ -1,5 +1,5 @@
 """
-The RTU Client is the entrypoint for sending and receiving RTU messagse from Gate.
+The RTU Client is the entrypoint for sending and receiving RTU messages from Gate.
 You can get a reference to this class from the dependency cache
  - planar_ally.dependencies.get_dependency_cache().rtu_client()
 
@@ -106,12 +106,6 @@ class RTUClient:
             channel=f"files/{file_id}",
         )
 
-        self.register_delta_callback(
-            fn=self._on_delta_recv,
-            event_type="new_delta_event",
-            channel=f"files/{file_id}",
-        )
-
         # Delta handling. Key points here are:
         # - we don't want to apply deltas until we get file subscribe reply and deltas-to-apply
         # - Deltas may be "out of order", should save to be replayed later
@@ -120,7 +114,7 @@ class RTUClient:
         self.unapplied_deltas: List[deltas.FileDelta] = []  # "out of order deltas" to be replayed
         self.deltas_to_apply_event = asyncio.Event()  # set in ._on_file_subscribe_reply
 
-        self.register_delta_callback(
+        self.register_rtu_event_callback(
             fn=self._on_delta_recv,
             event_type="new_delta_event",
             channel=f"files/{file_id}",
@@ -145,7 +139,7 @@ class RTUClient:
         """
         Register a callback that will be awaited whenever an RTU event is received that matches the
         {event_type} and optionally the {channel} or starts with {channel_prefix}. It's adviseable
-        to use {channel} if you can, but in cases such as registering a callback for /users/<id>
+        to use {channel} if you can, but in cases such as registering a callback for users/<id>
         (user preference updates) it might be easier to use {channel_prefix}.
         """
 
@@ -185,6 +179,7 @@ class RTUClient:
         # - processing messages coming over the wire, dropping them onto inbound queue
         # - taking messages taken off the inbound queue and running callbacks
         # - taking messages from outbound queue and sending them over the wire
+        # - if queue_size is 0, it means no max queue size for inbound/outbound asyncio.Queue
         await self.manager.initialize(
             queue_size=queue_size,
             inbound_workers=inbound_workers,
