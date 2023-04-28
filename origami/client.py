@@ -2,18 +2,15 @@
 
 import asyncio
 import functools
-import os
 import uuid
 from asyncio import Future
 from collections import defaultdict
-from datetime import datetime
 from queue import LifoQueue
 from typing import Any, Dict, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import backoff
 import httpx
-import jwt
 import structlog
 import websockets
 import websockets.exceptions
@@ -74,150 +71,79 @@ class RTUError(RuntimeError):
     pass
 
 
-class ClientSettings(BaseSettings):
+class ClientConfig(BaseSettings):
     """A pydantic settings object for loading settings into dataclasses"""
 
-    auth0_config_path: str = "./auth0_config"
-
-
-class ClientConfig(BaseModel):
-    """Captures the client's config object for user settable arguments"""
-
-    client_id: str = ""
-    client_secret: str = ""
     http_protocol: str = "https"
     websocket_protocol: str = "wss"
     domain: str = "app.noteable.io"
     backend_path: str = "gate/api"
-    auth0_domain: str = ""
-    audience: str = "https://app.noteable.io/gate"
     ws_timeout: int = 60
+    token: Optional[str] = None
+
+    class Config:
+        env_prefix = "noteable_"
+
+    def __init__(
+        self,
+        api_token: Optional[str] = None,
+        **kwargs,
+    ):
+        """Initializes the config and overrides api_token if it is passed in."""
+        if api_token:
+            kwargs["token"] = api_token
+        super().__init__(**kwargs)
 
 
-class Token(BaseModel):
-    """Represents an oauth token response object"""
+class Auth0Config(BaseModel):
+    auth0_domain: str = ""
+    client_id: str = ""
+    client_secret: str = ""
+    audience: str = "https://app.noteable.io/gate"
 
-    access_token: str
-    iss: str = None
-    sub: str = None
-    aud: str = None
-    iat: datetime = None
-    exp: datetime = None
-    azp: str = None
-    gty: str = None
+
+def _default_timeout_arg(func):
+    """A helper for setting a default timeout on async methods."""
+
+    @functools.wraps(func)
+    async def wrapper(self, *args, timeout=None, **kwargs):
+        if timeout is None:
+            timeout = self.config.ws_timeout
+        return await func(self, *args, timeout=timeout, **kwargs)
+
+    return wrapper
 
 
 class NoteableClient(httpx.AsyncClient):
     """An async client class that provides interfaces for communicating with Noteable APIs."""
 
-    def _requires_ws_context(func):
-        """A helper for checking if one is in a websocket context or not"""
-
-        @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            if not self.in_context:
-                raise ValueError("Cannot send RTU request outside of a context manager scope.")
-            return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    def _default_timeout_arg(func):
-        """A helper for checking if one is in a websocket context or not"""
-
-        @functools.wraps(func)
-        async def wrapper(self, *args, timeout=None, **kwargs):
-            if timeout is None:
-                timeout = self.config.ws_timeout
-            return await func(self, *args, timeout=timeout, **kwargs)
-
-        return wrapper
-
     def __init__(
         self,
-        api_token: Optional[Union[str, Token]] = None,
+        api_token: Optional[str] = None,
         config: Optional[ClientConfig] = None,
         follow_redirects=True,
+        extra_headers: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
         """Initializes httpx client and sets up state trackers for async comms."""
-        if not config:
-            settings = ClientSettings()
-            if not os.path.exists(settings.auth0_config_path):
-                logger.warning(
-                    f"No config object passed in and no config file found at {settings.auth0_config_path}"
-                    ", using default empty config"
-                )
-                config = ClientConfig()
-            else:
-                config = ClientConfig.parse_file(settings.auth0_config_path)
+        self.config = config or ClientConfig(api_token=api_token)
+        self.rtu_client = NoteableRTUClient(config=self.config)
 
-        self.config = config
-        self.config.domain = os.getenv("NOTEABLE_DOMAIN", self.config.domain)
-        self.config.http_protocol = os.getenv("NOTEABLE_HTTP_PROTOCOL", self.config.http_protocol)
-        self.config.websocket_protocol = os.getenv(
-            "NOTEABLE_WEBSOCKET_PROTOCOL", self.config.websocket_protocol
-        )
-        self.config.backend_path = os.getenv("NOTEABLE_BACKEND_PATH", self.config.backend_path)
-        self.file_session_cache = {}
-
-        self.user = None
-        self.token = api_token or os.getenv("NOTEABLE_TOKEN") or self.get_token()
-        if isinstance(self.token, str):
-            self.token = Token(access_token=self.token)
-        self.rtu_socket: WebSocketClientProtocol = None
-        self.process_task_loop = None
-
-        headers = kwargs.pop('headers', {})
-        headers['Authorization'] = f"Bearer {self.token.access_token}"
-
-        # Set of active channel subscriptions (always subscribed to system messages)
-        self.subscriptions = {'system'}
-        # channel -> message_type -> callback_queue
-        self.type_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
-        # channel -> transaction_id -> callback_queue
-        self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         super().__init__(
             base_url=f"{self.config.http_protocol}://{self.config.domain}/",
             follow_redirects=follow_redirects,
-            headers=headers,
+            headers={
+                "Authorization": f"Bearer {self.config.token}",
+                **(extra_headers or {}),
+            },
+            timeout=self.config.ws_timeout,
             **kwargs,
         )
-
-        self.reconnect_rtu_task = None
-
-    @property
-    def origin(self):
-        """Formats the domain in an origin string for websocket headers."""
-        return f'{self.config.http_protocol}://{self.config.domain}'
-
-    @property
-    def ws_uri(self):
-        """Formats the websocket URI out of the notable domain name."""
-        return f"{self.config.websocket_protocol}://{self.config.domain}/{self.config.backend_path}/v1/rtu"
 
     @property
     def api_server_uri(self):
         """Formats the http API URI out of the notable domain name."""
         return f"{self.config.http_protocol}://{self.config.domain}/{self.config.backend_path}"
-
-    def get_token(self):
-        """Fetches and api token using oauth client config settings.
-
-        WARNING: This is a blocking call so we can call it from init, but it should be quick
-        """
-        url = f"https://{self.config.auth0_domain}/oauth/token"
-        data = {
-            "client_id": self.config.client_id,
-            "client_secret": self.config.client_secret,
-            "audience": self.config.audience,
-            "grant_type": "client_credentials",
-        }
-        resp = httpx.post(url, json=data)
-        resp.raise_for_status()
-
-        token = resp.json()["access_token"]
-        token_data = jwt.decode(token, options={"verify_signature": False})
-        return Token(access_token=token, **token_data)
 
     @_default_timeout_arg
     @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
@@ -254,7 +180,6 @@ class NoteableClient(httpx.AsyncClient):
             session = KernelStatusUpdate(
                 session_id=resp_data[0]["id"], kernel=resp_data[0]["kernel"]
             )
-            self.file_session_cache[file_id] = session
             return session
 
     @backoff.on_exception(backoff.expo, ReadTimeout, max_time=EXP_BACKOFF_MAX_TIME)
@@ -273,7 +198,6 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         resp_data = resp.json()
         session = KernelStatusUpdate(session_id=resp_data["id"], kernel=resp_data["kernel"])
-        self.file_session_cache[file.id] = session
         return session
 
     @backoff.on_exception(
@@ -290,7 +214,7 @@ class NoteableClient(httpx.AsyncClient):
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
         """
-        resp = await self.subscribe_file(file)
+        resp = await self.rtu_client.subscribe_file(file)
         assert resp.data.success, "Failed to connect to the files channel over RTU"
         session = resp.data.kernel_session
         if not session:
@@ -302,7 +226,7 @@ class NoteableClient(httpx.AsyncClient):
                 file, kernel_name=kernel_name, hardware_size=hardware_size
             )
 
-            kernel_status_tracker = self.register_message_callback(
+            kernel_status_tracker = self.rtu_client.register_message_callback(
                 _kernel_status_callback,
                 channel=session.kernel_channel,
                 message_type="kernel_status_update_event",
@@ -319,9 +243,6 @@ class NoteableClient(httpx.AsyncClient):
                     )
                 session = KernelStatusUpdate.parse_obj(kernel_status_update.data)
 
-        if session:
-            self.file_session_cache[file.id] = session
-
         return session
 
     @_default_timeout_arg
@@ -329,19 +250,13 @@ class NoteableClient(httpx.AsyncClient):
         """Fetches the first notebook kernel session via the Noteable REST API.
         Returns None if no session is active.
         """
-        file_id = file if not isinstance(file, NotebookFile) else file.id
-        if file_id in self.file_session_cache:
-            session = self.file_session_cache[file_id]
-        else:
-            session = await self.get_kernel_session(file)
+        session = await self.get_kernel_session(file)
         if session is None:
             return  # Already shutdown
         resp = await self.delete(
             f"{self.api_server_uri}/sessions/{session.session_id}", timeout=timeout
         )
         resp.raise_for_status()
-        if file_id in self.file_session_cache:
-            del self.file_session_cache[file.id]
 
     @_default_timeout_arg
     async def create_parameterized_notebook(
@@ -420,11 +335,6 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return JobInstanceAttempt.parse_obj(resp.json())
 
-    @property
-    def in_context(self):
-        """Indicates if the client is within an async context generation loop or not."""
-        return self.rtu_socket is not None
-
     async def __aenter__(self):
         """
         Creates an async test client for the Noteable App.
@@ -435,16 +345,62 @@ class NoteableClient(httpx.AsyncClient):
         validate and extract principal-user-id from the token.
         """
         res = await httpx.AsyncClient.__aenter__(self)
+        await self.rtu_client.__aenter__()
+        return res
+
+    async def __aexit__(self, exc_type=None, exc=None, tb=None):
+        """Cleans out the tracker states and closes the httpx + websocket contexts."""
+        try:
+            await self.rtu_client.__aexit__(exc_type, exc, tb)
+        finally:
+            return await httpx.AsyncClient.__aexit__(self, exc_type, exc, tb)
+
+    def __enter__(self):
+        return run_sync(self.__aenter__)()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return run_sync(self.__aexit__)(exc_type, exc_val, exc_tb)
+
+
+class NoteableRTUClient:
+    def _requires_ws_context(func):
+        """A helper for checking if one is in a websocket context or not"""
+
+        @functools.wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.in_context:
+                raise ValueError("Cannot send RTU request outside of a context manager scope.")
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    def __init__(
+        self,
+        api_token: Optional[str] = None,
+        config: Optional[ClientConfig] = None,
+    ):
+        # Set of active channel subscriptions (always subscribed to system messages)
+        self.subscriptions = {'system'}
+        # channel -> message_type -> callback_queue
+        self.type_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
+        # channel -> transaction_id -> callback_queue
+        self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
+
+        self.config = config or ClientConfig(api_token=api_token)
+        self.rtu_socket: WebSocketClientProtocol = None
+        self.process_task_loop = None
+        self.reconnect_rtu_task = None
+        self.user = None
+
+    async def __aenter__(self):
         # Create a new RTU socket for this context
         await self._connect_rtu_socket()
         # Loop indefinitely over the incoming websocket messages
         self.process_task_loop = asyncio.create_task(self._process_messages())
         # Authenticate for more advanced API calls
         await self.authenticate()
-        return res
 
-    async def __aexit__(self, exc_type, exc, tb):
-        """Cleans out the tracker states and closes the httpx + websocket contexts."""
+    async def __aexit__(self, exc_type=None, exc_val=None, exc_tb=None):
         try:
             if self.process_task_loop:
                 self.process_task_loop.cancel()
@@ -459,14 +415,6 @@ class NoteableClient(httpx.AsyncClient):
             self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         except Exception:
             logger.exception("Error in closing out nested context loops")
-        finally:
-            return await httpx.AsyncClient.__aexit__(self, exc_type, exc, tb)
-
-    def __enter__(self):
-        return run_sync(self.__aenter__)()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return run_sync(self.__aexit__)(exc_type, exc_val, exc_tb)
 
     def register_message_callback(
         self,
@@ -625,7 +573,7 @@ class NoteableClient(httpx.AsyncClient):
     async def _connect_rtu_socket(self, timeout: float):
         """Opens a websocket connection to Noteable RTU."""
         # Origin is needed, else the server request crashes and rejects the connection
-        headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
+        headers = {'Authorization': f"Bearer {self.config.token}", 'Origin': self.origin}
         self.rtu_socket = await websockets.connect(
             self.ws_uri, extra_headers=headers, open_timeout=timeout
         )
@@ -680,7 +628,7 @@ class NoteableClient(httpx.AsyncClient):
 
         # Register the transaction reply after sending the request
         req = AuthenticationRequest(
-            transaction_id=uuid4(), data=AuthenticationRequestData(token=self.token.access_token)
+            transaction_id=uuid4(), data=AuthenticationRequestData(token=self.config.token)
         )
         tracker = AuthenticationReply.register_callback(self, req, authorized)
         await self.send_rtu_request(req)
@@ -740,6 +688,27 @@ class NoteableClient(httpx.AsyncClient):
         req, tracker = self._gen_subscription_request(channel)
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
+
+    @property
+    def ws_uri(self):
+        """Formats the websocket URI out of the notable domain name."""
+        return f"{self.config.websocket_protocol}://{self.config.domain}/{self.config.backend_path}/v1/rtu"
+
+    @property
+    def in_context(self):
+        """Indicates if the client is within an async context generation loop or not."""
+        return self.rtu_socket is not None
+
+    @staticmethod
+    def kernels_channel(file_id: uuid.UUID):
+        file_id_part = file_id.hex[:20]
+        notebook_kernel_id = f"notebook-kernel-{file_id_part}"[:63]
+        return f"kernels/{notebook_kernel_id}"
+
+    @property
+    def origin(self):
+        """Formats the domain in an origin string for websocket headers."""
+        return f'{self.config.http_protocol}://{self.config.domain}'
 
     @staticmethod
     def files_channel(file_id):
@@ -928,11 +897,6 @@ class NoteableClient(httpx.AsyncClient):
         assert not cell_id or not after_id, 'Cannot define both a cell_id and after_id'
         assert not cell_id or not before_id, 'Cannot define both a cell_id and before_id'
 
-        session = self.file_session_cache.get(file.id)
-        assert (
-            session and session.kernel.execution_state.kernel_is_alive
-        ), "Cannot execute cell without an active session"
-
         action = FileDeltaAction.execute_all
         if cell_id:
             action = FileDeltaAction.execute
@@ -975,7 +939,7 @@ class NoteableClient(httpx.AsyncClient):
             # Register this before we start execution so we don't miss fast cells concluding
             results_tracker = self.register_message_callback(
                 cell_complete_check,
-                session.kernel_channel,
+                self.kernels_channel(file.id),
                 "bulk_cell_state_update_event",
                 response_schema=BulkCellStateMessage,
             )
