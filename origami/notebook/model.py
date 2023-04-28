@@ -9,9 +9,10 @@ Devs: as usual with Pydantic modeling, the top-level model (Notebook) is at the 
 read from bottom up for most clarity.
 """
 import uuid
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, validator
+from typing_extensions import Annotated  # for 3.8 compatibility
 
 
 # Cell outputs modeled with a discriminator pattern where the output_type
@@ -85,7 +86,7 @@ class CodeCell(CellBase):
         return self.metadata.get("noteable", {}).get("cell_type") == "sql"
 
     @property
-    def output_collection_id(self) -> str | uuid.UUID | None:
+    def output_collection_id(self) -> Optional[Union[str, uuid.UUID]]:
         return self.metadata.get("noteable", {}).get("output_collection_id")
 
 
