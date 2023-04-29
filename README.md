@@ -1,5 +1,11 @@
 # Origami
-A library capturing message patterns and protocols speaking to Noteable's APIs
+
+<p align="center">
+<img src="docs/papersnake.svg" width="250px" />
+<br />
+Launch, edit, and share Jupyter notebooks <i>in automation</i>.
+</p>
+
 <p align="center">
 <a href="https://github.com/noteable-io/origami/actions/workflows/ci.yaml">
     <img src="https://github.com/noteable-io/origami/actions/workflows/ci.yaml/badge.svg" alt="CI" />
@@ -13,23 +19,28 @@ A library capturing message patterns and protocols speaking to Noteable's APIs
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
----------
+---
 
 [Install](#installation) | [Getting Started](#getting-started) | [Documentation](https://noteable-origami.readthedocs.io) | [License](./LICENSE) | [Code of Conduct](./CODE_OF_CONDUCT.md) | [Contributing](./CONTRIBUTING.md)
 
 <!-- --8<-- [start:intro] -->
+
 ## Intro to Origami
 
-Origami is our paper folding library for talking to [Noteable notebooks](http://noteable.io/). This is where we describe the full breadth of API calls and access patterns in async Python for rich programmatic access to the platform. You can use the platform for free with a quick signup.
+Origami is a 🐍 Python library for talking to [Noteable notebooks](https://noteable.io/). This is the official way to access the full breadth of API calls and access patterns in async Python for rich programmatic access to notebooks. You can use [Noteable for free](https://app.noteable.io) with a quick signup.
+
 <!-- --8<-- [end:intro] -->
 
 <!-- --8<-- [start:requirements] -->
+
 ## Requirements
 
 Python 3.8+
+
 <!-- --8<-- [end:requirements] -->
 
 <!-- --8<-- [start:install] -->
+
 ## Installation
 
 ### Poetry
@@ -38,26 +49,27 @@ Python 3.8+
 poetry add noteable-origami
 ```
 
-
 ### Pip
+
 ```shell
 pip install noteable-origami
 ```
+
 <!-- --8<-- [end:install] -->
 
 <!-- --8<-- [start:start] -->
+
 ## Getting Started
 
-Get your API token from Noteable Within user settings.
-Within user settings, go to the API Token page, and generate a new token. 
-
-Copy the value
+Get your API token from Noteable within user settings.
+Within user settings, go to the API Token page, and generate a new token.
 
 ```python
 from origami.client import NoteableClient
 
-token = 'ey...' # Your user API token
+token = ''  # Your API token from Noteable
 async with NoteableClient(api_token=token) as client:
+    # Establish a connection to the realtime API
     await client.ping_rtu()
 ```
 
@@ -96,7 +108,7 @@ async with NoteableClient() as client:
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
--------
+---
 
 <p align="center">Open sourced with ❤️ by <a href="https://noteable.io">Noteable</a> for the community.</p>
 
