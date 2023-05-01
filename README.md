@@ -68,8 +68,9 @@ Within user settings, go to the API Token page, and generate a new token.
 from origami.client import NoteableClient
 
 token = ''  # Your API token from Noteable
+
+# Establish a connection to the realtime API
 async with NoteableClient(api_token=token) as client:
-    # Establish a connection to the realtime API
     await client.ping_rtu()
 ```
 
