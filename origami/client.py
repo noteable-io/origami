@@ -125,7 +125,7 @@ class NoteableClient(httpx.AsyncClient):
         self.process_task_loop = None
 
         headers = kwargs.pop('headers', {})
-        headers['Authorization'] = f"Bearer {self.token.access_token}"
+        headers['Authorization'] = f"Bearer {self.config.token}"
 
         # Set of active channel subscriptions (always subscribed to system messages)
         self.subscriptions = {'system'}
