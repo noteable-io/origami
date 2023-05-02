@@ -227,7 +227,7 @@ class NoteableClient(httpx.AsyncClient):
         If no session is available one is created, if one is available but not ready it awaits the kernel session
         being ready for further requests.
         """
-        resp = await self.rtu_client.subscribe_file(file)
+        resp = await self.subscribe_file(file)
         assert resp.data.success, "Failed to connect to the files channel over RTU"
         session = resp.data.kernel_session
         if not session:
@@ -239,7 +239,7 @@ class NoteableClient(httpx.AsyncClient):
                 file, kernel_name=kernel_name, hardware_size=hardware_size
             )
 
-            kernel_status_tracker = self.rtu_client.register_message_callback(
+            kernel_status_tracker = self.register_message_callback(
                 _kernel_status_callback,
                 channel=session.kernel_channel,
                 message_type="kernel_status_update_event",
@@ -673,6 +673,12 @@ class NoteableClient(httpx.AsyncClient):
     def files_channel(file_id):
         """Helper to build file channel names from file ids"""
         return f"files/{file_id}"
+
+    @staticmethod
+    def kernels_channel(file_id: uuid.UUID):
+        file_id_part = file_id.hex[:20]
+        notebook_kernel_id = f"notebook-kernel-{file_id_part}"[:63]
+        return f"kernels/{notebook_kernel_id}"
 
     @_requires_ws_context
     @_default_timeout_arg
