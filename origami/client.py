@@ -95,20 +95,30 @@ class ClientConfig(BaseSettings):
         super().__init__(**kwargs)
 
 
-def _default_timeout_arg(func):
-    """A helper for setting a default timeout on async methods."""
-
-    @functools.wraps(func)
-    async def wrapper(self, *args, timeout=None, **kwargs):
-        if timeout is None:
-            timeout = self.config.ws_timeout
-        return await func(self, *args, timeout=timeout, **kwargs)
-
-    return wrapper
-
-
 class NoteableClient(httpx.AsyncClient):
     """An async client class that provides interfaces for communicating with Noteable APIs."""
+
+    def _requires_ws_context(func):
+        """A helper for checking if one is in a websocket context or not"""
+
+        @functools.wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.in_context:
+                raise ValueError("Cannot send RTU request outside of a context manager scope.")
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    def _default_timeout_arg(func):
+        """A helper for setting a default timeout on async methods."""
+
+        @functools.wraps(func)
+        async def wrapper(self, *args, timeout=None, **kwargs):
+            if timeout is None:
+                timeout = self.config.ws_timeout
+            return await func(self, *args, timeout=timeout, **kwargs)
+
+        return wrapper
 
     def __init__(
         self,
