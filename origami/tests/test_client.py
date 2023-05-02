@@ -80,14 +80,16 @@ async def test_client_websocket_context(connect_mock_with_auth_patched, client_c
     connect_mock_with_auth_patched.return_value.close.assert_called_once()
 
 
-def test_token_is_loaded_from_env(client_config):
+def test_token_is_loaded_from_env():
     os.environ["NOTEABLE_TOKEN"] = "fake-token-env"
+    client_config = ClientConfig()
     client = NoteableClient(config=client_config)
-    assert client.token.access_token == "fake-token-env"
+    assert client.config.token == "fake-token-env"
 
 
-def test_domain_is_loaded_from_env(client_config):
+def test_domain_is_loaded_from_env():
     os.environ["NOTEABLE_DOMAIN"] = "https://example.com"
+    client_config = ClientConfig()
     client = NoteableClient(config=client_config)
     assert client.config.domain == "https://example.com"
 
