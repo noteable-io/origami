@@ -94,14 +94,6 @@ class ClientConfig(BaseSettings):
             kwargs["token"] = api_token
         super().__init__(**kwargs)
 
-
-class Auth0Config(BaseModel):
-    auth0_domain: str = ""
-    client_id: str = ""
-    client_secret: str = ""
-    audience: str = "https://app.noteable.io/gate"
-
-
 def _default_timeout_arg(func):
     """A helper for setting a default timeout on async methods."""
 
@@ -122,23 +114,43 @@ class NoteableClient(httpx.AsyncClient):
         api_token: Optional[str] = None,
         config: Optional[ClientConfig] = None,
         follow_redirects=True,
-        extra_headers: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
         """Initializes httpx client and sets up state trackers for async comms."""
         self.config = config or ClientConfig(api_token=api_token)
-        self.rtu_client = NoteableRTUClient(config=self.config)
 
+        self.user = None
+        self.rtu_socket: WebSocketClientProtocol = None
+        self.process_task_loop = None
+
+        headers = kwargs.pop('headers', {})
+        headers['Authorization'] = f"Bearer {self.token.access_token}"
+
+        # Set of active channel subscriptions (always subscribed to system messages)
+        self.subscriptions = {'system'}
+        # channel -> message_type -> callback_queue
+        self.type_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
+        # channel -> transaction_id -> callback_queue
+        self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         super().__init__(
             base_url=f"{self.config.http_protocol}://{self.config.domain}/",
             follow_redirects=follow_redirects,
-            headers={
-                "Authorization": f"Bearer {self.config.token}",
-                **(extra_headers or {}),
-            },
+            headers=headers,
             timeout=self.config.ws_timeout,
             **kwargs,
         )
+
+        self.reconnect_rtu_task = None
+
+    @property
+    def origin(self):
+        """Formats the domain in an origin string for websocket headers."""
+        return f'{self.config.http_protocol}://{self.config.domain}'
+
+    @property
+    def ws_uri(self):
+        """Formats the websocket URI out of the notable domain name."""
+        return f"{self.config.websocket_protocol}://{self.config.domain}/{self.config.backend_path}/v1/rtu"
 
     @property
     def api_server_uri(self):
@@ -335,6 +347,11 @@ class NoteableClient(httpx.AsyncClient):
         resp.raise_for_status()
         return JobInstanceAttempt.parse_obj(resp.json())
 
+    @property
+    def in_context(self):
+        """Indicates if the client is within an async context generation loop or not."""
+        return self.rtu_socket is not None
+
     async def __aenter__(self):
         """
         Creates an async test client for the Noteable App.
@@ -345,62 +362,16 @@ class NoteableClient(httpx.AsyncClient):
         validate and extract principal-user-id from the token.
         """
         res = await httpx.AsyncClient.__aenter__(self)
-        await self.rtu_client.__aenter__()
-        return res
-
-    async def __aexit__(self, exc_type=None, exc=None, tb=None):
-        """Cleans out the tracker states and closes the httpx + websocket contexts."""
-        try:
-            await self.rtu_client.__aexit__(exc_type, exc, tb)
-        finally:
-            return await httpx.AsyncClient.__aexit__(self, exc_type, exc, tb)
-
-    def __enter__(self):
-        return run_sync(self.__aenter__)()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return run_sync(self.__aexit__)(exc_type, exc_val, exc_tb)
-
-
-class NoteableRTUClient:
-    def _requires_ws_context(func):
-        """A helper for checking if one is in a websocket context or not"""
-
-        @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            if not self.in_context:
-                raise ValueError("Cannot send RTU request outside of a context manager scope.")
-            return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    def __init__(
-        self,
-        api_token: Optional[str] = None,
-        config: Optional[ClientConfig] = None,
-    ):
-        # Set of active channel subscriptions (always subscribed to system messages)
-        self.subscriptions = {'system'}
-        # channel -> message_type -> callback_queue
-        self.type_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
-        # channel -> transaction_id -> callback_queue
-        self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
-
-        self.config = config or ClientConfig(api_token=api_token)
-        self.rtu_socket: WebSocketClientProtocol = None
-        self.process_task_loop = None
-        self.reconnect_rtu_task = None
-        self.user = None
-
-    async def __aenter__(self):
         # Create a new RTU socket for this context
         await self._connect_rtu_socket()
         # Loop indefinitely over the incoming websocket messages
         self.process_task_loop = asyncio.create_task(self._process_messages())
         # Authenticate for more advanced API calls
         await self.authenticate()
+        return res
 
-    async def __aexit__(self, exc_type=None, exc_val=None, exc_tb=None):
+    async def __aexit__(self, exc_type, exc, tb):
+        """Cleans out the tracker states and closes the httpx + websocket contexts."""
         try:
             if self.process_task_loop:
                 self.process_task_loop.cancel()
@@ -415,6 +386,14 @@ class NoteableRTUClient:
             self.transaction_callbacks = defaultdict(lambda: defaultdict(LifoQueue))
         except Exception:
             logger.exception("Error in closing out nested context loops")
+        finally:
+            return await httpx.AsyncClient.__aexit__(self, exc_type, exc, tb)
+
+    def __enter__(self):
+        return run_sync(self.__aenter__)()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return run_sync(self.__aexit__)(exc_type, exc_val, exc_tb)
 
     def register_message_callback(
         self,
@@ -573,7 +552,7 @@ class NoteableRTUClient:
     async def _connect_rtu_socket(self, timeout: float):
         """Opens a websocket connection to Noteable RTU."""
         # Origin is needed, else the server request crashes and rejects the connection
-        headers = {'Authorization': f"Bearer {self.config.token}", 'Origin': self.origin}
+        headers = {'Authorization': self.headers['authorization'], 'Origin': self.origin}
         self.rtu_socket = await websockets.connect(
             self.ws_uri, extra_headers=headers, open_timeout=timeout
         )
@@ -688,27 +667,6 @@ class NoteableRTUClient:
         req, tracker = self._gen_subscription_request(channel)
         await self.send_rtu_request(req)
         return await asyncio.wait_for(tracker.next_trigger, timeout)
-
-    @property
-    def ws_uri(self):
-        """Formats the websocket URI out of the notable domain name."""
-        return f"{self.config.websocket_protocol}://{self.config.domain}/{self.config.backend_path}/v1/rtu"
-
-    @property
-    def in_context(self):
-        """Indicates if the client is within an async context generation loop or not."""
-        return self.rtu_socket is not None
-
-    @staticmethod
-    def kernels_channel(file_id: uuid.UUID):
-        file_id_part = file_id.hex[:20]
-        notebook_kernel_id = f"notebook-kernel-{file_id_part}"[:63]
-        return f"kernels/{notebook_kernel_id}"
-
-    @property
-    def origin(self):
-        """Formats the domain in an origin string for websocket headers."""
-        return f'{self.config.http_protocol}://{self.config.domain}'
 
     @staticmethod
     def files_channel(file_id):
