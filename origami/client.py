@@ -94,6 +94,7 @@ class ClientConfig(BaseSettings):
             kwargs["token"] = api_token
         super().__init__(**kwargs)
 
+
 def _default_timeout_arg(func):
     """A helper for setting a default timeout on async methods."""
 
