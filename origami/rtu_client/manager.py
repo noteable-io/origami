@@ -1,8 +1,11 @@
 """
-Used by planar_ally.rtu.client.RTUClient.
+Subclass the Sending-based Websocket manager to serialize/deserialize json <-> RTU models,
+and add some logging / exception handling hook.
 
-XXX: This can probably live in Sending itself eventually, after being
-     stress-tested in PA for a little while.
+Used by origami.rtu_client.client.RTUClient.
+
+As a developer, you probably don't need to subclass this, just override Sending hooks like
+.auth_hook and .init_hook inside your higher level class (e.g. RTUClient subclass / composition).
 """
 import asyncio
 import logging
@@ -20,10 +23,9 @@ class RTUManager(WebsocketManager):
     - Makes a connection to the RTU validation server
     - Handles reconnection if the validation server crashes
     - Serializes inbound messages to rtu.GenericRTUReply and outbound to rtu.GenericRTURequest
-    - Adds convenience functions for registering callbacks by RTU event type
     - Adds extra logging kwargs for RTU event type and optional Delta type/action
     - Other classes that use this should add appropriate .auth_hook and .init_hook,
-      and register callbacks to do something with RTU events (like File Delta squashing)
+      and register callbacks to do something with RTU events (see RTUClient)
     """
 
     # Serializing inbound and outbound messages between websocket str payloads and RTU models
