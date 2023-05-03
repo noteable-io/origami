@@ -477,6 +477,7 @@ class RTUClient:
                     extra={
                         'callback': callback,
                         'delta': delta,
+                        'traceback': "".join(traceback.format_tb(result.__traceback__)),
                     },
                 )
 
