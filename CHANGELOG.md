@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## Added
+- Moved `RTUClient` and `NotebookBuilder` (with Pydantic models for a Notebook) into `origami`.
+
 ## [0.0.24] - 2023-04-12
 ## Fixed
 - Fixed `NoteableClient.add_cell` callback to look explicity for `new_delta_reply` message type, instead of by transaction_id. This is because if the `new_delta_event` message is received before the `new_delta_reply`, the `add_call` success callback will fail due to schema validation error.
