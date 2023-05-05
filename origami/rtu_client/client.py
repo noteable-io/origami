@@ -7,15 +7,13 @@ Deltas by delta type and delta action.
 import asyncio
 import traceback
 import uuid
-from datetime import datetime
-from typing import Awaitable, Callable, Dict, List, Literal, Optional
+from typing import Awaitable, Callable, List, Literal, Optional
 
 import structlog
 from pydantic import BaseModel
 from websockets.client import WebSocketClientProtocol
 
 from origami.defs import deltas, rtu
-from origami.defs.kernels import KernelStatus
 from origami.notebook.builder import NotebookBuilder
 from origami.rtu_client.manager import RTUManager
 
@@ -84,26 +82,6 @@ class RTUClient:
         self.register_rtu_event_callback(
             fn=self._on_file_subscribe_reply,
             event_type="subscribe_reply",
-            channel=f"files/{file_id}",
-        )
-
-        # Keep track of Kernel state and Cell states based on receiving bulk_cell_state_update
-        # and kernel_status_update RTU events
-        self.kernel_status: Optional[KernelStatus] = None
-        self.cell_states: Dict[str, deltas.CellState] = {}  # keys are cell-id
-        self.cell_execution_events: Dict[str, asyncio.Event] = {}  # keys are cell-id
-        # ^^ .execute_cell() creates an event, ._on_bulk_cell_state_update resolves and pops it from
-        # dict when it sees that cell has finished executing
-
-        self.register_rtu_event_callback(
-            fn=self._on_kernel_status_update,
-            event_type="kernel_status_update",
-            channel=f"files/{file_id}",
-        )
-
-        self.register_rtu_event_callback(
-            fn=self._on_bulk_cell_state_update,
-            event_type="bulk_cell_state_update",
             channel=f"files/{file_id}",
         )
 
@@ -328,61 +306,6 @@ class RTUClient:
         # Application code may want to do extra things like subscribe to kernels channel or users
         # channel for each msg.data['user_subscriptions'].
         await self.on_file_subscribe(msg)
-
-    def make_delta(
-        self,
-        delta_type: deltas.FileDeltaType,
-        delta_action: deltas.FileDeltaAction,
-        resource_id: Optional[str] = None,
-        props: Optional[dict] = None,
-    ) -> rtu.GenericRTURequest:
-        delta = {
-            'id': uuid.uuid4(),
-            'created_at': datetime.utcnow(),
-            'delta_type': str(delta_type),
-            'delta_action': str(delta_action),
-        }
-        if resource_id:
-            delta['resource_id'] = resource_id
-        if props:
-            delta['props'] = props
-        rtu_req = rtu.GenericRTURequest(
-            transaction_id=uuid.uuid4(),
-            channel=f'files/{self.file_id}',
-            event='new_delta_request',
-            data={'delta': delta},
-        )
-        return rtu_req
-
-    async def execute_cell(self, cell_id: str) -> asyncio.Event:
-        if cell_id in self.cell_execution_events:
-            logger.warning(
-                f"{cell_id=} already had an asyncio.Event for execution, closing it to create new one."
-            )
-            self.cell_execution_events[cell_id].set()
-        event = asyncio.Event()
-        self.cell_execution_events[cell_id] = event
-        req = self.make_delta(
-            delta_type=deltas.FileDeltaType.cell_execute,
-            delta_action=deltas.FileDeltaAction.execute,
-            resource_id=cell_id,
-        )
-        self.send(req)
-        return event
-
-    async def _on_kernel_status_update(self, msg: rtu.GenericRTUReply):
-        if 'kernel' in msg.data and 'execution_state' in msg.data['kernel']:
-            self.kernel_status = KernelStatus(msg.data['kernel']['execution_state'])
-
-    async def _on_bulk_cell_state_update(self, msg: rtu.GenericRTUReply):
-        if 'cell_states' in msg.data:
-            self.cell_states = {
-                item['cell_id']: deltas.CellState(item['state']) for item in msg.data['cell_states']
-            }
-        for cell_id, state in self.cell_states.items():
-            if cell_id in self.cell_execution_events and state == deltas.CellState.executing:
-                self.cell_execution_events[cell_id].set()
-                self.cell_execution_events.pop(cell_id)
 
     async def _on_delta_recv(self, msg: rtu.GenericRTUReply):
         """
