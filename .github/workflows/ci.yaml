@@ -33,7 +33,7 @@ jobs:
         run: nox -s generate_coverage_xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
-        
+
   lint:
     runs-on: ubuntu-20.04
     steps:
