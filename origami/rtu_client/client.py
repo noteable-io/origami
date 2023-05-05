@@ -251,7 +251,7 @@ class RTUClient:
                 self.manager.authed_ws = asyncio.Future()
 
             self.manager.authed_ws.set_result(self.manager.unauth_ws.result())
-            await self.on_auth(self, msg)
+            await self.on_auth(msg)
             await self.send_file_subscribe()
         else:
             logger.error(f"Authentication failed: {msg}")
