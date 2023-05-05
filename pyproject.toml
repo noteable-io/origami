@@ -44,6 +44,8 @@ structlog = "^22.1.0"
 websockets = "^10.3"
 backoff = "^2.1.2"
 cryptography = "^39.0.1"
+diff-match-patch = "^20200713"
+sending = "^0.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.1"
@@ -93,6 +95,9 @@ line_length = 100
 multi_line_output = 3
 include_trailing_comma = true
 known_third_party = []
+
+[tool.ruff]
+line-length = 100
 
 [tool.coverage.run]
 branch = false
