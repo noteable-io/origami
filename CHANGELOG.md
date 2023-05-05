@@ -5,8 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.25] - 2023-05-05
 ## Added
 - Moved `RTUClient` and `NotebookBuilder` (with Pydantic models for a Notebook) into `origami`.
+
+## Changed
+- Improved environment management in `origami.client.NoteableClient`
 
 ## [0.0.24] - 2023-04-12
 ## Fixed
