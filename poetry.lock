@@ -2025,6 +2025,24 @@ testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8 (<5)", "flake8-202
 testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
+name = "sending"
+version = "0.3.0"
+description = "Library for pub/sub usage within an async application"
+category = "main"
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "sending-0.3.0-py3-none-any.whl", hash = "sha256:baad4a8bc08aa55d50bb8d177effb20fa5de1012fc71c2678c90d2af215a403c"},
+    {file = "sending-0.3.0.tar.gz", hash = "sha256:4d275253f99bbaf8f791335275a6f64c02ab00870aebccb5a7a257ee86b76801"},
+]
+
+[package.extras]
+all = ["aioredis[hiredis] (>=2.0.0,<3.0.0)", "ipykernel (>=6.15.1,<7.0.0)", "jupyter_client (>=7.3.0,<8.0.0)", "websockets (>=10.3,<11.0)"]
+jupyter = ["ipykernel (>=6.15.1,<7.0.0)", "jupyter_client (>=7.3.0,<8.0.0)"]
+redis = ["aioredis[hiredis] (>=2.0.0,<3.0.0)"]
+websockets = ["websockets (>=10.3,<11.0)"]
+
+[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
