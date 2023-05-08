@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.26] - 2023-05-08
+### Fixed
+- Logic error in squashing "deltas-to-apply" during file subscribe reply
+- Return value from `RTUManager.register_callback` to support unregistering callbacks (one-shot callbacks)
+
 ## [0.0.25] - 2023-05-05
 ## Added
 - Moved `RTUClient` and `NotebookBuilder` (with Pydantic models for a Notebook) into `origami`.
