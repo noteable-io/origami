@@ -135,7 +135,7 @@ class RTUClient:
                     return True
             return False
 
-        self.manager.register_callback(fn, on_predicate=predicate_fn)
+        return self.manager.register_callback(fn, on_predicate=predicate_fn)
 
     def register_delta_callback(self, fn: Callable, delta_type: str = "*", delta_action: str = "*"):
         """
@@ -330,7 +330,13 @@ class RTUClient:
         If it is not a match, we may have received out of order deltas and we
         queue it to be replayed later
         """
-        if delta.parent_delta_id == self.builder.last_applied_delta_id:
+        if self.builder.last_applied_delta_id is None:
+            # We need this for situations where we've downloaded the seed notebook and gotten deltas
+            # to apply from file subscribe reply, but do not have information about what the first
+            # delta in that deltas-to-apply list is.
+            await self.apply_delta(delta=delta)
+
+        elif delta.parent_delta_id == self.builder.last_applied_delta_id:
             # For logging related to applying delta, override .pre_apply_delta
             await self.apply_delta(delta=delta)
             await self.replay_unapplied_deltas()
