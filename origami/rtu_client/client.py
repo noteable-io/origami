@@ -66,7 +66,7 @@ class DeltaRequest:
         self.client = client
         self.transaction_id = uuid.uuid4()
         self.delta_id = uuid.uuid4()
-        self.result: asyncio.Future[bool] = asyncio.Future()
+        self.result: asyncio.Future[deltas.FileDelta] = asyncio.Future()
         delta = deltas.FileDelta(
             id=self.delta_id,
             delta_type=delta_type,
@@ -540,7 +540,8 @@ class RTUClient:
         delta_action: deltas.FileDeltaAction,
         resource_id: str = deltas.NULL_RESOURCE_SENTINEL,
         properties: Optional[dict] = None,
-    ) -> asyncio.Future[bool]:
+    ) -> "asyncio.Future[deltas.FileDelta]":
+        # return type hint in quotes because a linter was yelling at me, but I think it's fine w/o
         req = DeltaRequest(
             client=self,
             delta_type=delta_type,
