@@ -90,7 +90,7 @@ class DeltaRequest:
         # callback and also a Delta callback in order to set errors from RTU msgs, and set success
         # only after Delta has been processed in order and squashed.
         self.rtu_cb_ref = client.register_rtu_event_callback(
-            fn=self.rtu_cb, on_predicate=self.rtu_predicate
+            fn=self.rtu_cb, transaction_id=self.transaction_id
         )
         self.delta_cb_ref = client.register_delta_callback(
             fn=self.delta_cb, delta_type=delta_type, delta_action=delta_action
@@ -213,9 +213,10 @@ class RTUClient:
     def register_rtu_event_callback(
         self,
         fn: Callable,
-        event_type: str,
+        event_type: Optional[str] = None,
         channel: Optional[str] = None,
         channel_prefix: Optional[str] = None,
+        transaction_id: Optional[uuid.UUID] = None,
     ) -> Callable:
         """
         Register a callback that will be awaited whenever an RTU event is received that matches the
@@ -230,12 +231,15 @@ class RTUClient:
         # The "topic" in the predicate_fn is always hardcoded to "" in the websocket backend, it's
         # used in other backends like redis just not applicable here.
         def predicate_fn(topic: Literal[""], msg: rtu.GenericRTUReply):
-            if msg.event == event_type:
-                if channel and msg.channel == channel:
-                    return True
-                elif channel_prefix and msg.channel.startswith(channel_prefix):
-                    return True
-            return False
+            if transaction_id and not msg.transaction_id == transaction_id:
+                return False
+            if event_type and not msg.event == event_type:
+                return False
+            if channel and not msg.channel == channel:
+                return False
+            if channel_prefix and not msg.channel.startswith(channel_prefix):
+                return False
+            return True
 
         return self.manager.register_callback(fn, on_predicate=predicate_fn)
 
