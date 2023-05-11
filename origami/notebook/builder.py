@@ -139,7 +139,13 @@ class NotebookBuilder:
                 f"Unhandled delta {delta.delta_type=} {delta.delta_action=}.\n\nFull Delta: {delta}"
             )
         else:
-            handler(delta)
+            try:
+                handler(delta)
+            except Exception as e:  # noqa: E722
+                logger.exception(
+                    "Error squashing Delta into NotebookBuilder", extra={'delta': delta}
+                )
+                raise e
         # Even if the Delta was unhandled, update the last applied id so that we don't break
         # RTUClient by making it think we're waiting for a missing delta and blocking all applies
         self.last_applied_delta_id = delta.id
