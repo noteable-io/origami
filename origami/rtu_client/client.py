@@ -103,7 +103,7 @@ class DeltaRequest:
 
     def deregister_callbacks(self):
         self.rtu_cb_ref()  # return value of .register_rtu_event_callback is a fn that deregisters
-        self.client.delta_callbacks.pop(self.delta_cb_ref)  # delta cbs are just stored in a list
+        self.client.delta_callbacks.remove(self.delta_cb_ref)  # delta cbs are just stored in a list
 
     async def rtu_cb(self, msg: rtu.GenericRTUReply):
         # If the delta is rejected, we should see a new_delta_reply with success=False and the
@@ -497,7 +497,7 @@ class RTUClient:
             if dc.delta_type == "*" or dc.delta_type == delta.delta_type:
                 if dc.delta_action == "*" or dc.delta_action == delta.delta_action:
                     callbacks.append(dc.fn(delta))
-        # Log errors on callbacks but don't shut down Kernel Pod
+        # Log errors on callbacks but don't stop RTU processing loop
         results = await asyncio.gather(*callbacks, return_exceptions=True)
         for callback, result in zip(callbacks, results):
             if isinstance(result, Exception):
@@ -507,6 +507,7 @@ class RTUClient:
                     extra={
                         'callback': callback,
                         'delta': delta,
+                        'ename': repr(result),
                         'traceback': "".join(traceback.format_tb(result.__traceback__)),
                     },
                 )
