@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `RTUClient.new_delta_request` sends out a new delta request and gives back a Future that resolves to True when we've seen a corresponding `new_delta_event` and squashed it into the `NotebookBuilder`. Will also resolve to `DeltaRejected` exception on rejection / invalid data.
+
 ## [0.0.26] - 2023-05-08
 ### Fixed
 - Logic error in squashing "deltas-to-apply" during file subscribe reply

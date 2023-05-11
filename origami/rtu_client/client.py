@@ -31,6 +31,107 @@ class DeltaCallback(BaseModel):
     delta_action: str = "*"
 
 
+class DeltaRejected(Exception):
+    pass
+
+
+class DeltaRequest:
+    """
+    Don't use this directly, see RTUClient.new_delta_request which builds an instance of this and
+    returns the .result -- Future resolves to bool or raises DeltaRejected
+
+    - Crafts an RTU / Delta message
+    - Sends over websocket to Gate
+    - Registers RTU and Delta squashing callbacks to resolve the Future either when the Delta was
+      successful and squashed into Notebook or when there was an error (Rejected / Invalid Delta)
+    - Deregisters RTU and Delta callbacks when Future is resolved
+
+    Use case:
+    delta_squashed: asyncio.Future[bool] = await rtu_client.new_delta_request(...)
+    try:
+        await delta_squashed
+    except DeltaRejected:
+        ...
+    # Delta is guarenteed to be in rtu_client.builder at this point
+    """
+
+    def __init__(
+        self,
+        client: 'RTUClient',
+        delta_type: deltas.FileDeltaType,
+        delta_action: deltas.FileDeltaAction,
+        resource_id: str = deltas.NULL_RESOURCE_SENTINEL,
+        properties: Optional[dict] = None,
+    ):
+        self.client = client
+        self.transaction_id = uuid.uuid4()
+        self.delta_id = uuid.uuid4()
+        self.result: asyncio.Future[bool] = asyncio.Future()
+        delta = deltas.FileDelta(
+            id=self.delta_id,
+            delta_type=delta_type,
+            delta_action=delta_action,
+            resource_id=resource_id,
+            file_id=client.file_id,
+            created_by_id=client.user_id,
+            properties=properties,
+        )
+        msg = rtu.GenericRTURequest(
+            transaction_id=self.transaction_id,
+            msg_id=uuid.uuid4(),
+            channel=f"files/{client.file_id}",
+            event="new_delta_request",
+            data={"delta": delta.dict()},
+        )
+
+        # Dev note: originally we only had the RTU event callback, success if we saw new_delta_event
+        # and error if we saw delta_rejected / invalid_data. However just seeing a new_delta_event
+        # doesn't mean it was "in-order" / squashed into NotebookBuilder. Moved to using an RTU
+        # callback and also a Delta callback in order to set errors from RTU msgs, and set success
+        # only after Delta has been processed in order and squashed.
+        self.rtu_cb_ref = client.register_rtu_event_callback(
+            fn=self.rtu_cb, on_predicate=self.rtu_predicate
+        )
+        self.delta_cb_ref = client.register_delta_callback(
+            fn=self.delta_cb, delta_type=delta_type, delta_action=delta_action
+        )
+        logger.info(
+            "Sending new delta request and registering one-shot cb to resolve future",
+            msg=msg,
+        )
+        client.send(msg)
+
+    def deregister_callbacks(self):
+        self.rtu_cb_ref()  # return value of .register_rtu_event_callback is a fn that deregisters
+        self.client.delta_callbacks.pop(self.delta_cb_ref)  # delta cbs are just stored in a list
+
+    async def rtu_predicate(self, topic: Literal[""], msg: rtu.GenericRTUReply):
+        # trigger callback for any msg with this transaction id (new_delta_reply / new_delta_event)
+        return msg.transaction_id == self.transaction_id
+
+    async def rtu_cb(self, msg: rtu.GenericRTUReply):
+        # If the delta is rejected, we should see a new_delta_reply with success=False and the
+        # details are in a separate delta_rejected event
+        if msg.event == "delta_rejected":
+            logger.debug("Delta rejected", extra={"msg": msg})
+            self.result.set_exception(DeltaRejected(msg.data["cause"]))
+            self.deregister_callbacks()
+
+        elif msg.event == "invalid_data":
+            # If Gate can't parse the Delta into Pydantic model, it will give back this invalid_data
+            # event, but it doesn't include the validation details in the body. Need to look at
+            # Gate logs to see what happened (like nb_cells add not having 'id' in properties)
+            logger.debug("Delta invalid", extra={"msg": msg})
+            self.result.set_exception(DeltaRejected("Invalid Delta scheme"))
+            self.deregister_callbacks()
+
+    async def delta_cb(self, delta: deltas.FileDelta):
+        if delta.id == self.delta_id:
+            logger.debug("Delta squashed", extra={'delta': delta})
+            self.result.set_result(delta)
+            self.deregister_callbacks()
+
+
 class RTUClient:
     def __init__(
         self, rtu_url: str, jwt: str, file_id: str, file_version_id: str, builder: NotebookBuilder
@@ -63,6 +164,7 @@ class RTUClient:
         self.file_id = file_id
         self.file_version_id = file_version_id
         self.builder = builder
+        self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
 
         # rtu_session_id, and the connect / disconnect / context hooks are used solely for logging.
         # It adds rtu_session_id, kernel_session_id, rtu_file_id, and rtu_file_name as structlog
@@ -114,7 +216,7 @@ class RTUClient:
         event_type: str,
         channel: Optional[str] = None,
         channel_prefix: Optional[str] = None,
-    ):
+    ) -> Callable:
         """
         Register a callback that will be awaited whenever an RTU event is received that matches the
         {event_type} and optionally the {channel} or starts with {channel_prefix}. It's adviseable
@@ -149,9 +251,9 @@ class RTUClient:
         These callbacks are triggered by .apply_delta() and stored in a separate callback
         list from vanilla Sending callbacks (manager.register_callback's)
         """
-        self.delta_callbacks.append(
-            DeltaCallback(fn=fn, delta_type=delta_type, delta_action=delta_action)
-        )
+        cb = DeltaCallback(fn=fn, delta_type=delta_type, delta_action=delta_action)
+        self.delta_callbacks.append(cb)
+        return cb
 
     async def initialize(self, queue_size=0, inbound_workers=1, outbound_workers=1, poll_workers=1):
         # see Sending base.py for details, calling .initialize starts asyncio.Tasks for
@@ -219,6 +321,7 @@ class RTUClient:
         """
         if msg.data["success"]:
             logger.info("Authentication successful")
+            self.user_id = msg.data['user']['id']
             if self.manager.authed_ws.done():
                 # We've seen that sometimes on websocket reconnect, trying to .authed_ws.set_result
                 # throws an asyncio.InvalidStateError: Result is already set.
@@ -431,3 +534,19 @@ class RTUClient:
                 await self.apply_delta(delta=delta)
                 self.unapplied_deltas.remove(delta)
                 return await self.replay_unapplied_deltas()
+
+    async def new_delta_request(
+        self,
+        delta_type: deltas.FileDeltaType,
+        delta_action: deltas.FileDeltaAction,
+        resource_id: str = deltas.NULL_RESOURCE_SENTINEL,
+        properties: Optional[dict] = None,
+    ) -> asyncio.Future[bool]:
+        req = DeltaRequest(
+            client=self,
+            delta_type=delta_type,
+            delta_action=delta_action,
+            resource_id=resource_id,
+            properties=properties,
+        )
+        return req.result
