@@ -105,10 +105,6 @@ class DeltaRequest:
         self.rtu_cb_ref()  # return value of .register_rtu_event_callback is a fn that deregisters
         self.client.delta_callbacks.pop(self.delta_cb_ref)  # delta cbs are just stored in a list
 
-    async def rtu_predicate(self, topic: Literal[""], msg: rtu.GenericRTUReply):
-        # trigger callback for any msg with this transaction id (new_delta_reply / new_delta_event)
-        return msg.transaction_id == self.transaction_id
-
     async def rtu_cb(self, msg: rtu.GenericRTUReply):
         # If the delta is rejected, we should see a new_delta_reply with success=False and the
         # details are in a separate delta_rejected event
@@ -220,9 +216,7 @@ class RTUClient:
     ) -> Callable:
         """
         Register a callback that will be awaited whenever an RTU event is received that matches the
-        {event_type} and optionally the {channel} or starts with {channel_prefix}. It's adviseable
-        to use {channel} if you can, but in cases such as registering a callback for users/<id>
-        (user preference updates) it might be easier to use {channel_prefix}.
+        other arguments passed in (event, channel, channel_prefix, transaction_id).
         """
 
         # When Sending/RTUManager receives and deserializes a message to an RTU event, it checks
