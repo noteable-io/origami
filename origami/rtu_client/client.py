@@ -75,7 +75,7 @@ class DeltaRequest:
             file_id=client.file_id,
             created_by_id=client.user_id,
             properties=properties,
-        )
+        ).validate_data()
         msg = rtu.GenericRTURequest(
             transaction_id=self.transaction_id,
             msg_id=uuid.uuid4(),
