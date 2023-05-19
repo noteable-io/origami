@@ -124,7 +124,8 @@ class DeltaRequest:
     async def delta_cb(self, delta: deltas.FileDelta):
         if delta.id == self.delta_id:
             logger.debug("Delta squashed", extra={'delta': delta})
-            self.result.set_result(delta)
+            if not self.result.done():
+                self.result.set_result(delta)
             self.deregister_callbacks()
 
 
