@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.0.29] - 2023-05-30
+### Fixed
+- Don't send file subscribe requests by delta id all-0's (sentinel value), it's not a real Delta in the db
+
 ## [0.0.28] - 2023-05-19
 ### Fixed
 - Fix `InvalidStateError` in `DeltaRequest.delta_cb`
