@@ -353,7 +353,7 @@ class RTUClient:
         # the seed notebook from s3 for the first time, which is probably fine.
         #
         # Second note, subscribing by delta id all-0's throws an error in Gate.
-        if self.builder.last_applied_delta_id and self.builder.last_applied_delta_id != uuid.UUID(int=0):  # type: ignore
+        if self.builder.last_applied_delta_id and self.builder.last_applied_delta_id != uuid.UUID(int=0):  # type: ignore # noqa: E501
             data = rtu.FileSubscribeRequestData(from_delta_id=self.builder.last_applied_delta_id)
             logger.info(
                 "Sending File subscribe request by last applied delta id",
