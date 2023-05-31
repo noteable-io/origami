@@ -5,11 +5,11 @@ model, and registering callbacks for incoming RTU events by event_name and chann
 Deltas by delta type and delta action.
 """
 import asyncio
+import logging
 import traceback
 import uuid
 from typing import Awaitable, Callable, List, Literal, Optional
 
-import structlog
 from pydantic import BaseModel
 from websockets.client import WebSocketClientProtocol
 
@@ -18,7 +18,7 @@ from origami.defs.rtu import RTUClientTypes
 from origami.notebook.builder import NotebookBuilder
 from origami.rtu_client.manager import RTUManager
 
-logger = structlog.get_logger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class DeltaCallback(BaseModel):
@@ -98,7 +98,7 @@ class DeltaRequest:
         )
         logger.info(
             "Sending new delta request and registering one-shot cb to resolve future",
-            msg=msg,
+            extra={'msg': msg},
         )
         client.send(msg)
 
@@ -171,9 +171,6 @@ class RTUClient:
         self.rtu_client_type = rtu_client_type
         self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
 
-        # rtu_session_id, and the connect / disconnect / context hooks are used solely for logging.
-        # It adds rtu_session_id, kernel_session_id, rtu_file_id, and rtu_file_name as structlog
-        # contextvars to all callback functions
         self.rtu_session_id = None
         self.manager.auth_hook = self.auth_hook
         self.manager.connect_hook = self.connect_hook
@@ -374,7 +371,7 @@ class RTUClient:
             data = rtu.FileSubscribeRequestData(from_version_id=self.file_version_id)
             logger.info(
                 "Sending File subscribe request by version id",
-                from_version_id=str(data.from_version_id),
+                extra={'from_version_id': str(data.from_version_id)},
             )
         req = rtu.FileSubscribeRequestSchema(
             transaction_id=uuid.uuid4(),
@@ -542,7 +539,8 @@ class RTUClient:
         for delta in self.unapplied_deltas:
             if delta.parent_delta_id == self.builder.last_applied_delta_id:
                 logger.debug(
-                    "Applying previously queued out of order delta", delta_id=str(delta.id)
+                    "Applying previously queued out of order delta",
+                    extra={'delta_id': str(delta.id)},
                 )
                 await self.apply_delta(delta=delta)
                 self.unapplied_deltas.remove(delta)
