@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from websockets.client import WebSocketClientProtocol
 
 from origami.defs import deltas, rtu
+from origami.defs.rtu import RTUClientTypes
 from origami.notebook.builder import NotebookBuilder
 from origami.rtu_client.manager import RTUManager
 
@@ -131,7 +132,13 @@ class DeltaRequest:
 
 class RTUClient:
     def __init__(
-        self, rtu_url: str, jwt: str, file_id: str, file_version_id: str, builder: NotebookBuilder
+        self,
+        rtu_url: str,
+        jwt: str,
+        file_id: str,
+        file_version_id: str,
+        builder: NotebookBuilder,
+        rtu_client_type: RTUClientTypes = RTUClientTypes.ORIGAMI,
     ):
         """
         High-level client over the Sending websocket backend / RTUManager (serialize websocket msgs
@@ -161,6 +168,7 @@ class RTUClient:
         self.file_id = file_id
         self.file_version_id = file_version_id
         self.builder = builder
+        self.rtu_client_type = rtu_client_type
         self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
 
         # rtu_session_id, and the connect / disconnect / context hooks are used solely for logging.
@@ -297,7 +305,10 @@ class RTUClient:
         until we've observed an `authenticate_reply` event
         """
         auth_request = rtu.AuthenticationRequest(
-            transaction_id=uuid.uuid4(), data=rtu.AuthenticationRequestData(token=self.jwt)
+            transaction_id=uuid.uuid4(),
+            data=rtu.AuthenticationRequestData(
+                token=self.jwt, rtu_client_type=self.rtu_client_type
+            ),
         )
         # auth_hook is the special situation that shouldn't use manager.send(),
         # since that will ultimately delay sending things over the wire until

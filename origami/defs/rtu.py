@@ -505,10 +505,25 @@ class ProjectFilesSyncedMessage(BaseModel):
     pass
 
 
+@enum.unique
+class RTUClientTypes(str, enum.Enum):
+    UNKNOWN = 'unknown'
+
+    GEAS = 'geas'
+    PLANAR_ALLY = 'planar_ally'
+    ORIGAMI = 'origami'
+    ORIGAMIST = 'origamist'
+
+    def __str__(self):
+        return self.value
+
+
 class AuthenticationRequestData(BaseModel):
     """Defines a request to ping the rtu websocket"""
 
     token: str
+
+    rtu_client_type: Optional[RTUClientTypes] = RTUClientTypes.UNKNOWN
 
 
 class AuthenticationRequest(GenericRTURequestSchema[AuthenticationRequestData]):
