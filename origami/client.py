@@ -20,7 +20,7 @@ from pydantic import BaseModel, BaseSettings, ValidationError
 from websockets.legacy.client import WebSocketClientProtocol
 
 from origami.defs.deltas import NBMetadataProperties, V2CellMetadataProperties
-from origami.defs.rtu import BulkCellStateMessage
+from origami.defs.rtu import BulkCellStateMessage, RTUClientTypes
 
 from .defs.deltas import FileDeltaAction, FileDeltaType, NBCellProperties, V2CellContentsProperties
 from .defs.files import FileVersion, NotebookFile
@@ -80,6 +80,7 @@ class ClientConfig(BaseSettings):
     backend_path: str = "gate/api"
     ws_timeout: int = 60
     token: Optional[str] = None
+    client_type: RTUClientTypes = RTUClientTypes.ORIGAMI
 
     class Config:
         env_prefix = "noteable_"
@@ -618,7 +619,10 @@ class NoteableClient(httpx.AsyncClient):
 
         # Register the transaction reply after sending the request
         req = AuthenticationRequest(
-            transaction_id=uuid4(), data=AuthenticationRequestData(token=self.config.token)
+            transaction_id=uuid4(),
+            data=AuthenticationRequestData(
+                token=self.config.token, rtu_client_type=self.config.client_type
+            ),
         )
         tracker = AuthenticationReply.register_callback(self, req, authorized)
         await self.send_rtu_request(req)
