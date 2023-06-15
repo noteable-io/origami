@@ -98,7 +98,7 @@ class DeltaRequest:
         )
         logger.info(
             "Sending new delta request and registering one-shot cb to resolve future",
-            extra={'msg': msg},
+            extra={'rtu_msg': msg},
         )
         client.send(msg)
 
@@ -110,7 +110,7 @@ class DeltaRequest:
         # If the delta is rejected, we should see a new_delta_reply with success=False and the
         # details are in a separate delta_rejected event
         if msg.event == "delta_rejected":
-            logger.debug("Delta rejected", extra={"msg": msg})
+            logger.debug("Delta rejected", extra={"rtu_msg": msg})
             self.result.set_exception(DeltaRejected(msg.data["cause"]))
             self.deregister_callbacks()
 
@@ -118,7 +118,7 @@ class DeltaRequest:
             # If Gate can't parse the Delta into Pydantic model, it will give back this invalid_data
             # event, but it doesn't include the validation details in the body. Need to look at
             # Gate logs to see what happened (like nb_cells add not having 'id' in properties)
-            logger.debug("Delta invalid", extra={"msg": msg})
+            logger.debug("Delta invalid", extra={"rtu_msg": msg})
             self.result.set_exception(DeltaRejected("Invalid Delta scheme"))
             self.deregister_callbacks()
 
