@@ -18,7 +18,7 @@ from origami.defs.rtu import RTUClientTypes
 from origami.notebook.builder import NotebookBuilder
 from origami.rtu_client.manager import RTUManager
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DeltaCallback(BaseModel):
