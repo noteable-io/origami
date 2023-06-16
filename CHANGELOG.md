@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.32] - 2023-06-51
+### Fixed
+- Logging extras changing `msg` to `rtu_msg`
+
 ## [0.0.31] - 2023-06-15
 ### Fixed
 - Fixed syntax from changing `rtu_client` logger from structlog to vanilla logging
