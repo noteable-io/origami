@@ -23,6 +23,13 @@ class StreamOutput(BaseModel):
     name: str  # stdout or stderr
     text: str
 
+    @validator("text", pre=True)
+    def multiline_text(cls, v):
+        """In the event we get a list of strings, combine into one string with newlines."""
+        if isinstance(v, list):
+            return "\n".join(v)
+        return v
+
 
 class DisplayDataOutput(BaseModel):
     output_type: Literal["display_data"] = "display_data"
