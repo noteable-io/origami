@@ -43,7 +43,7 @@ pydantic = "^1.10.5"
 structlog = "^22.1.0"
 websockets = "^10.3"
 backoff = "^2.1.2"
-cryptography = "^39.0.1"
+cryptography = ">=39.0.1,<42.0.0"
 diff-match-patch = "^20200713"
 sending = "^0.3.0"
 
