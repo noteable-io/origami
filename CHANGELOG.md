@@ -6,7 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.32] - 2023-06-51
+## [0.0.33] - 2023-06-23
+### Fixed
+- ValidationErrors when parsing `StreamOutput` that contains a list of strings for `text` instead of a string 
+
+## [0.0.32] - 2023-06-15
 ### Fixed
 - Logging extras changing `msg` to `rtu_msg`
 
