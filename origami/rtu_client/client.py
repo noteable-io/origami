@@ -122,6 +122,11 @@ class DeltaRequest:
             self.result.set_exception(DeltaRejected("Invalid Delta scheme"))
             self.deregister_callbacks()
 
+        elif msg.event == "permission_denied":
+            logger.debug("Delta permission denied", extra={"rtu_msg": msg})
+            self.result.set_exception(DeltaRejected("Permission denied"))
+            self.deregister_callbacks()
+
     async def delta_cb(self, delta: deltas.FileDelta):
         if delta.id == self.delta_id:
             logger.debug("Delta squashed", extra={'delta': delta})
