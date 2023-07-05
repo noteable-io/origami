@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.34] - 2023-07-05
+### Fixed
+- Raise `DeltaRejected` when Gate sends a `permission_denied` RTU event in response to a new delta request
+
 ## [0.0.33] - 2023-06-23
 ### Fixed
 - ValidationErrors when parsing `StreamOutput` that contains a list of strings for `text` instead of a string 
