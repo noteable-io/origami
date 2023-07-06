@@ -2,6 +2,8 @@ from typing import Optional
 
 import httpx
 
+from origami.defs.models import User
+
 
 class GateAPIClient:
     def __init__(
@@ -26,5 +28,15 @@ class GateAPIClient:
             timeout=timeout,
         )
 
+    def add_tags_and_contextvars(self, **tags):
+        """Hook for Apps to override so they can set structlog contextvars or trace tags"""
+        pass
 
-httpx.ti
+    async def user_info(self) -> User:
+        """Get the current user's info"""
+        endpoint = "/users/me"
+        resp = await self.client.get(endpoint)
+        resp.raise_for_status()
+        user = User.parse_obj(resp.json())
+        self.add_tags_and_contextvars(user_id=str(user.id))
+        return user
