@@ -69,7 +69,7 @@ class CellBase(BaseModel):
     (e.g. applying diff-match-patch cell content updates).
     """
 
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source: str = ""
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -85,7 +85,7 @@ class CellBase(BaseModel):
 
 class CodeCell(CellBase):
     cell_type: Literal["code"] = "code"
-    execution_count: Optional[int]
+    execution_count: Optional[int] = None
     outputs: List[CellOutput] = Field(default_factory=list)
 
     @property
@@ -117,10 +117,10 @@ NotebookCell = Annotated[
 
 
 class Notebook(BaseModel):
-    nbformat: int
-    nbformat_minor: int
-    metadata: Dict[str, Any]
-    cells: List[NotebookCell]
+    nbformat: int = 4
+    nbformat_minor: int = 5
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    cells: List[NotebookCell] = Field(default_factory=list)
 
     @property
     def language(self) -> Optional[str]:

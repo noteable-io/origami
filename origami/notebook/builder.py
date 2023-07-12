@@ -5,15 +5,29 @@ Notebook and update it with RTU / Delta formatted messages.
 import collections
 import logging
 import uuid
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, Type, Union
 
 import diff_match_patch
 import nbformat
 import orjson
-import pydantic
 
-from origami.defs import deltas
-from origami.notebook.model import Notebook, NotebookCell
+from origami.models.deltas.delta_types.cell_contents import CellContentsReplace, CellContentsUpdate
+from origami.models.deltas.delta_types.cell_execute import (
+    CellExecute,
+    CellExecuteAfter,
+    CellExecuteAll,
+    CellExecuteBefore,
+)
+from origami.models.deltas.delta_types.cell_metadata import (
+    NULL_PRIOR_VALUE_SENTINEL,
+    CellMetadataReplace,
+    CellMetadataUpdate,
+)
+from origami.models.deltas.delta_types.cell_output_collection import CellOutputCollectionReplace
+from origami.models.deltas.delta_types.nb_cells import NBCellsAdd, NBCellsDelete, NBCellsMove
+from origami.models.deltas.delta_types.nb_metadata import NBMetadataUpdate
+from origami.models.deltas.discriminators import FileDelta
+from origami.models.notebook import Notebook, NotebookCell
 
 logger = logging.getLogger(__name__)
 
@@ -29,27 +43,6 @@ class CellNotFound(Exception):
 class NotebookBuilder:
     """
     Apply RTU File Deltas to an in-memory representation of a Notebook.
-
-    # start with a seed Notebook
-    from origami.notebook.model import Notebook
-    nb = Notebook()
-
-    # instantiate builder
-    from origami.notebook.builder import NotebookBuilder
-    builder = NotebookBuilder(seed_notebok=nb)
-
-    # Apply deltas
-    from orgami.defs import deltas
-    deltas: List[deltas.FileDelta] = [...]
-    for delta in deltas:
-        builder.apply_delta(delta)
-
-    # Get cell by ID, raises CellNotFound if id doesn't exist
-    index, cell = builder.get_cell(cell_id='123')
-    print(cell.source)
-
-    # Serialize the notebook to JSON string (indent=False to make it more compact)
-    output: str = builder.dumps(indent=True)
     """
 
     def __init__(self, seed_notebook: Notebook):
@@ -66,9 +59,15 @@ class NotebookBuilder:
             if count > 1:
                 logger.warning(f"Found {count} cells with id {cell_id}")
 
+        # RTUClient uses the builder.last_applied_delta_id to figure out whether to apply incoming
+        # deltas or queue them in an unapplied_deltas list for replay
         self.last_applied_delta_id: Optional[uuid.UUID] = None
         # to keep track of deleted cells so we can ignore them in future deltas
         self.deleted_cell_ids: set[str] = set()
+
+    @property
+    def cell_ids(self) -> list[str]:
+        return [cell.id for cell in self.nb.cells]
 
     @classmethod
     def from_nbformat(self, nb: nbformat.NotebookNode) -> "NotebookBuilder":
@@ -86,228 +85,174 @@ class NotebookBuilder:
                 return (index, cell)
         raise CellNotFound(cell_id)
 
-    def apply_delta(self, delta: deltas.FileDelta) -> None:
+    def apply_delta(self, delta: FileDelta) -> None:
         """
-        Entrypoint for applying deltas to the in-memory Notebook.
-        Checks the delta type and delegates to the appropriate method.
+        Apply a FileDelta to the NotebookBuilder.
         """
-        # {delta_type: {delta_action: handler}}
-        handlers: Dict[str, Dict[str, Callable]] = {
-            "nb_cells": {
-                "add": self.add_cell,
-                "delete": self.delete_cell,
-                "move": self.move_cell,
-            },
-            "cell_contents": {
-                "update": self.update_cell_contents,
-                "replace": self.replace_cell_contents,
-            },
-            "cell_metadata": {
-                "update": self.update_cell_metadata,
-                "replace": self.replace_cell_metadata,
-            },
-            "nb_metadata": {
-                "update": self.update_notebook_metadata,
-            },
-            "cell_output_collection": {
-                "replace": self.replace_cell_output_collection,
-            },
-            "cell_execute": {
-                "execute": self.log_execute_delta,
-                "execute_all": self.log_execute_delta,
-                "execute_before": self.log_execute_delta,
-                "execute_after": self.log_execute_delta,
-            },
+        handlers: Dict[Type[FileDelta], Callable] = {
+            NBCellsAdd: self.add_cell,
+            NBCellsDelete: self.delete_cell,
+            NBCellsMove: self.move_cell,
+            CellContentsUpdate: self.update_cell_contents,
+            CellContentsReplace: self.replace_cell_contents,
+            CellMetadataUpdate: self.update_cell_metadata,
+            CellMetadataReplace: self.replace_cell_metadata,
+            NBMetadataUpdate: self.update_notebook_metadata,
+            CellOutputCollectionReplace: self.replace_cell_output_collection,
+            CellExecute: self.log_execute_delta,
+            CellExecuteAll: self.log_execute_delta,
+            CellExecuteBefore: self.log_execute_delta,
+            CellExecuteAfter: self.log_execute_delta,
         }
-        handler = None
-        if delta.delta_type in handlers:
-            handler = handlers[delta.delta_type].get(delta.delta_action)
-        # We shouldn't expect to see out of order Deltas now that RTUClient is handling checking
-        # order before trying to apply Deltas, but still log here if we think we're out of order
-        if (
-            delta.parent_delta_id
-            and delta.parent_delta_id != deltas.NULL_PARENT_DELTA_SENTINEL
-            and self.last_applied_delta_id
-            and delta.parent_delta_id != self.last_applied_delta_id
-        ):
-            logger.warning(
-                f"Suspect delta ordering: {delta.parent_delta_id=} {self.last_applied_delta_id=}"
-            )
-        # For observability sake, shout when we have a Delta type/action we aren't accounting for
-        if not handler:
-            logger.warning(
-                f"Unhandled delta {delta.delta_type=} {delta.delta_action=}.\n\nFull Delta: {delta}"
-            )
-        else:
-            try:
-                handler(delta)
-            except Exception as e:  # noqa: E722
-                logger.exception(
-                    "Error squashing Delta into NotebookBuilder", extra={'delta': delta}
-                )
-                raise e
-        # Even if the Delta was unhandled, update the last applied id so that we don't break
-        # RTUClient by making it think we're waiting for a missing delta and blocking all applies
-        self.last_applied_delta_id = delta.id
+        if type(delta) not in handlers:
+            raise ValueError(f"No handler for {delta.delta_type=}, {delta.delta_action=}")
 
-    def add_cell(self, delta: deltas.FileDelta):
-        """Handles delta_type: nb_cells, delta_action: add"""
-        props = deltas.NBCellProperties.parse_obj(delta.properties)
-        if not props.cell:
-            logger.warning("Received nb_cells / add delta with no cell data")
-            return
+        handler = handlers[type(delta)]
+        try:
+            handler(delta)
+            self.last_applied_delta_id = delta.id
+        except Exception as e:  # noqa: E722
+            logger.exception("Error squashing Delta into NotebookBuilder", extra={'delta': delta})
+            raise e
+
+    def add_cell(self, delta: NBCellsAdd):
+        """
+        Add a new cell to the Notebook.
+         - If after_id is specified, add it after that cell. Otherwise at top of Notebook
+         - cell_id can be specified at higher level delta.properties and should be copied down into
+           the cell part of the delta.properties
+        """
+        cell_id = delta.properties.id
         # Warning if we're adding a duplicate cell id
-        if props.id in [cell.id for cell in self.nb.cells]:
+        if cell_id in self.cell_ids:
             logger.warning(
-                f"Received nb_cells / add delta with cell id {props.id}. There is already a cell with that id"  # noqa: E501
+                f"Received NBCellsAdd delta with cell id {cell_id}, duplicate of existing cell"
             )
-        # Push 'id' down from NBCellProperties pydantic model into the actual props.cell dict
-        # Should revisit this when reviewing RTU models
-        props.cell["id"] = props.id
-        # Convert props.cell from dict to NotebookCell
-        new_cell = pydantic.parse_obj_as(NotebookCell, props.cell)
-        if props.after_id:
-            index, _ = self.get_cell(props.after_id)
+        new_cell = delta.properties.cell
+        # Push "delta.properites.id" down into cell id ...
+        new_cell.id = cell_id
+        if delta.properties.after_id:
+            index, _ = self.get_cell(delta.properties.after_id)
             self.nb.cells.insert(index + 1, new_cell)
         else:
             self.nb.cells.insert(0, new_cell)
 
-    def delete_cell(self, delta: deltas.FileDelta):
-        """Handles delta_type: nb_cells, delta_action: delete"""
-        props = deltas.NBCellProperties.parse_obj(delta.properties)
-        if not props.id:
-            logger.warning("Received nb_cells / delete delta with no cell id")
-            return
-        index, _ = self.get_cell(props.id)
+    def delete_cell(self, delta: NBCellsDelete):
+        """Deletes a cell from the Notebook. If the cell can't be found, warn but don't error."""
+        cell_id = delta.properties.id
+        index, _ = self.get_cell(cell_id)
         self.nb.cells.pop(index)
-        self.deleted_cell_ids.add(props.id)
+        self.deleted_cell_ids.add(cell_id)
 
-    def move_cell(self, delta: deltas.FileDelta):
-        """Handles delta_type: nb_cells, delta_action: move"""
-        props = deltas.NBCellProperties.parse_obj(delta.properties)
-        # technically moving a cell "below itself" (id and after_id are the same) is a valid delta
-        # but should effectively be a no-op from the NotebookBuilder perspective
-        if props.id == props.after_id:
-            return
-        index, _ = self.get_cell(props.id)
+    def move_cell(self, delta: NBCellsMove):
+        """Moves a cell from one position to another in the Notebook"""
+        cell_id = delta.properties.id
+        index, _ = self.get_cell(cell_id)
         cell_to_move = self.nb.cells.pop(index)
-        if props.after_id:
-            target_index, _ = self.get_cell(props.after_id)
+        if delta.properties.after_id:
+            target_index, _ = self.get_cell(delta.properties.after_id)
             self.nb.cells.insert(target_index + 1, cell_to_move)
+            return
         else:
             self.nb.cells.insert(0, cell_to_move)
 
-    def update_cell_contents(self, delta: deltas.FileDelta):
-        """Handles delta_type: cell_contents, delta_action: update"""
-        props = deltas.V2CellContentsProperties.parse_obj(delta.properties)
-        patches = self.dmp.patch_fromText(props.patch)
-
+    def update_cell_contents(self, delta: CellContentsUpdate):
+        """Update cell content using the diff-match-patch algorithm"""
+        patches = self.dmp.patch_fromText(delta.properties.patch)
         _, cell = self.get_cell(delta.resource_id)
         merged_text = self.dmp.patch_apply(patches, cell.source)[0]
         cell.source = merged_text
 
-    def replace_cell_contents(self, delta: deltas.FileDelta):
-        """Handles delta_type: cell_contents, delta_action: replace"""
-        props = deltas.V2CellContentsProperties.parse_obj(delta.properties)
+    def replace_cell_contents(self, delta: CellContentsReplace):
+        """Pure replacement of cell source content"""
         _, cell = self.get_cell(delta.resource_id)
-        cell.source = props.source
+        cell.source = delta.properties.source
 
-    def update_notebook_metadata(self, delta: deltas.FileDelta):
-        """Handles delta_type: nb_metadata, delta_action: update"""
-        props = deltas.NBMetadataProperties.parse_obj(delta.properties)
+    def update_notebook_metadata(self, delta: NBMetadataUpdate):
+        """Update top-level Notebook metadata using a partial update / nested path technique"""
         # Need to traverse the Notebook metadata dictionary by a list of keys.
         # If that key isn't there already, create it with value of empty dict
         # e.g. path=['foo', 'bar', 'baz'], value='xyz' needs to set
         # self.nb.metadata['foo']['bar']['baz'] = 'xyz'
         # and add those nested keys into metadata if they don't exist already
         dict_path = self.nb.metadata
-        for leading_key in props.path[:-1]:
+        for leading_key in delta.properties.path[:-1]:
             if leading_key not in dict_path:
                 dict_path[leading_key] = {}
             dict_path = dict_path[leading_key]
 
-        last_key = props.path[-1]
+        last_key = delta.properties.path[-1]
         if (
             last_key in dict_path
-            and props.prior_value
-            and props.prior_value != deltas.NULL_PRIOR_VALUE_SENTINEL
-            and dict_path[last_key] != props.prior_value
+            and delta.properties.prior_value
+            and delta.properties.prior_value != NULL_PRIOR_VALUE_SENTINEL
+            and dict_path[last_key] != delta.properties.prior_value
         ):
             logger.warning(
-                f"Notebook metadata path {props.path} expected to have prior value {props.prior_value} but was {dict_path[last_key]}"  # noqa: E501
+                f"Notebook metadata path {delta.properties.path} expected to have prior value {delta.properties.prior_value} but was {dict_path[last_key]}"  # noqa: E501
             )
 
-        dict_path[last_key] = props.value
+        dict_path[last_key] = delta.properties.value
 
-    def update_cell_metadata(self, delta: deltas.FileDelta):
-        """Handles delta_type: cell_metadata, delta_action: update"""
-        props = deltas.V2CellMetadataProperties.parse_obj(delta.properties)
-
+    def update_cell_metadata(self, delta: CellMetadataUpdate):
+        """Update cell metadata using a partial update / nested path technique"""
         if delta.resource_id in self.deleted_cell_ids:
             logger.info(
                 f"Skipping update_cell_metadata for deleted cell {delta.resource_id}",
-                extra={'delta_properties_path': props.path},
+                extra={'delta_properties_path': delta.properties.path},
             )
             return
 
         try:
             _, cell = self.get_cell(delta.resource_id)
         except CellNotFound:
+            # Most often happens when a User deletes a cell that's in progress of being executed,
+            # and we end up emitting a cell execution timing metadata as it gets deleted
             logger.warning(
                 "Got update_cell_metadata for cell that isn't in notebook or deleted_cell_ids",  # noqa: E501
-                extra={'delta_properties_path': props.path},
+                extra={'delta_properties_path': delta.properties.path},
             )
             return
 
         # see comment in update_notebook_metadata explaining dictionary traversal
         dict_path = cell.metadata
-        for leading_key in props.path[:-1]:
+        for leading_key in delta.properties.path[:-1]:
             if leading_key not in dict_path:
                 dict_path[leading_key] = {}
             dict_path = dict_path[leading_key]
 
-        last_key = props.path[-1]
+        last_key = delta.properties.path[-1]
         if (
             last_key in dict_path
-            and props.prior_value
-            and props.prior_value != deltas.NULL_PRIOR_VALUE_SENTINEL
-            and str(dict_path[last_key]) != str(props.prior_value)
+            and delta.properties.prior_value
+            and delta.properties.prior_value != NULL_PRIOR_VALUE_SENTINEL
+            and str(dict_path[last_key]) != str(delta.properties.prior_value)
         ):
             logger.warning(
-                f"Cell {cell.id} metadata path {props.path} expected to have prior value {props.prior_value} but was {dict_path[last_key]}"  # noqa: E501
+                f"Cell {cell.id} metadata path {delta.properties.path} expected to have prior value {delta.properties.prior_value} but was {dict_path[last_key]}"  # noqa: E501
             )
 
-        dict_path[last_key] = props.value
+        dict_path[last_key] = delta.properties.value
 
-    def replace_cell_metadata(self, delta: deltas.FileDelta):
-        """
-        Handles delta_type: cell_metadata, delta_action: replace.
+    def replace_cell_metadata(self, delta: CellMetadataReplace):
+        """Switch a cell type between code / markdown or change cell language (e.g. Python to R)"""
+        _, cell = self.get_cell(delta.resource_id)
 
-        This typically happens when changing cell type (e.g. code -> markdown)
-        """
-        props = deltas.V2CellMetadataProperties.parse_obj(delta.properties)
-        idx, cell = self.get_cell(delta.resource_id)
+        if delta.properties.type:
+            cell.cell_type = delta.properties.type
+        if delta.properties.language:
+            if "noteable" not in cell.metadata:
+                cell.metadata["noteable"] = {}
+            cell.metadata["noteable"]["cell_type"] = delta.properties.language
 
-        if props.type:
-            cell.cell_type = props.type
-            # changing cell types, we need to re-model the cell and pop/insert it into our cell list
-            cell = pydantic.parse_obj_as(NotebookCell, cell.dict())
-            self.nb.cells.pop(idx)
-            self.nb.cells.insert(idx, cell)
-            if props.language:
-                if "noteable" not in cell.metadata:
-                    cell.metadata["noteable"] = {}
-                cell.metadata["noteable"]["cell_type"] = props.language
-
-    def replace_cell_output_collection(self, delta: deltas.FileDelta):
-        """Handles delta_type: cell_output_collection, delta_action: replace"""
+    def replace_cell_output_collection(self, delta: CellOutputCollectionReplace):
+        """Update cell metadata to point to an Output Collection container id"""
         if delta.resource_id in self.deleted_cell_ids:
-            logger.info(
+            logger.warning(
                 f"Skipping replace_cell_output_collection for deleted cell {delta.resource_id}"
             )
             return
 
-        props = deltas.V2CellOutputCollectionProperties.parse_obj(delta.properties)
         try:
             _, cell = self.get_cell(delta.resource_id)
         except CellNotFound:
@@ -318,10 +263,16 @@ class NotebookBuilder:
 
         if "noteable" not in cell.metadata:
             cell.metadata["noteable"] = {}
-        cell.metadata["noteable"]["output_collection_id"] = props.output_collection_id
+        cell.metadata["noteable"]["output_collection_id"] = delta.properties.output_collection_id
 
-    def log_execute_delta(self, delta: deltas.FileDelta):
+    def log_execute_delta(
+        self, delta: Union[CellExecute, CellExecuteBefore, CellExecuteAfter, CellExecuteAll]
+    ):
         """Handles delta_type: execute, delta_action: execute | execute_all"""
+        logger.debug(
+            "Squashing execute delta",
+            extra={"delta_type": delta.delta_type, "delta_action": delta.delta_action},
+        )
         pass
 
     def dumps(self, indent: bool = True) -> bytes:
