@@ -316,7 +316,9 @@ class RTUClient:
         self.manager.send(msg)
 
     async def _on_unmodeled_rtu_msg(self, msg: BaseRTUResponse):
-        logger.warning("Received un-modeled RTU message", extra={"rtu_msg": msg})
+        logger.warning(
+            "Received un-modeled RTU message", extra={"channel": msg.channel, "event": msg.event}
+        )
 
     def register_rtu_event_callback(self, rtu_event: Type[RTUResponse], fn: Callable) -> Callable:
         """
