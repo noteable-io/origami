@@ -14,6 +14,7 @@ class File(ResourceBase):
     project_id: uuid.UUID
     space_id: uuid.UUID
     size: Optional[int]
+    mimetype: str
     type: Literal['file', 'notebook']
     current_version_id: Optional[uuid.UUID]
     # presigned_download_url is None when listing Files in a Project, need to hit /api/v1/files/{id}
