@@ -29,14 +29,20 @@ The project strucute follows this pattern:
 
 ```
    pyproject.toml # The repository toml for setup instructions
-   mkdocs.yml     # The configuration file
+   mkdocs.yml     # Docs configuration file
    docs/
       index.md    # The documentation homepage.
       ...         # Other markdown pages, images and other files
+   tests/
+      ...         # End-to-end tests against a Noteable cluster
    origami/
-      defs/       # Definitions for various pydantic types used
-      tests/      # Unittests for the library
-      client.py   # The primary client module
-      format.py   # Notebook formatting helpers
-      pathing.py  # Pathing utilities
+      clients/
+         api.py    # HTTP API Client for CRUD resources
+         rtu.py    # RTU Client for live Notebook document model updates and cell execution
+         cache.py  # RTU Client cache for interacting with multiple Notebooks
+      models/
+         rtu/      # Real-time-update websocket payload models
+         deltas/   # Document model updates within RTU Delta payloads
+      notebook/
+         ...       # In-memory Notebook builder that squashes RTU/Deltas
 ```
