@@ -298,6 +298,10 @@ class APIClient:
             raise ValueError(f"File {file_id} is not a notebook")
         if not file.presigned_download_url:
             raise ValueError(f"File {file_id} does not have a presigned download url")
+        # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
+        # localhost urls to the minio pod/container
+        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
+            file.presigned_download_url = file.presigned_download_url.replace('localhost', 'minio')
         async with httpx.AsyncClient() as plain_http_client:
             resp = await plain_http_client.get(file.presigned_download_url)
             resp.raise_for_status()
