@@ -4,7 +4,7 @@ import pytest
 
 from origami.clients.api import APIClient
 from origami.clients.rtu import RTUClient
-from origami.models.api_resources import File
+from origami.models.api.files import File
 from origami.models.notebook import CodeCell
 from origami.notebook.builder import CellNotFound
 

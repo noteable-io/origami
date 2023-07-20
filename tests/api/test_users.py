@@ -1,5 +1,5 @@
 from origami.clients.api import APIClient
-from origami.models.api_resources import User
+from origami.models.api.users import User
 
 
 async def test_users_me(api_client: APIClient) -> None:

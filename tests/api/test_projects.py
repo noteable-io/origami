@@ -1,7 +1,8 @@
 import uuid
 
 from origami.clients.api import APIClient
-from origami.models.api_resources import File, Project
+from origami.models.api.files import File
+from origami.models.api.projects import Project
 
 
 async def test_project_crud(api_client: APIClient, test_space_id: uuid.UUID):

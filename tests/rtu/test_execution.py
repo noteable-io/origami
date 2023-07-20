@@ -2,9 +2,9 @@ import asyncio
 
 from origami.clients.api import APIClient
 from origami.clients.rtu import RTUClient
-from origami.models.api_resources import File
+from origami.models.api.files import File
+from origami.models.api.kernels import KernelSession
 from origami.models.notebook import CodeCell, Notebook
-from origami.models.runtime import KernelSession
 
 
 async def test_outputs(api_client: APIClient, notebook_maker):

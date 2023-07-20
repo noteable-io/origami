@@ -4,11 +4,17 @@ import uuid
 from typing import List, Literal, Optional
 
 import httpx
+import pydantic
 
 from origami.clients.rtu import RTUClient
-from origami.models.api_resources import File, KernelOutputCollection, Project, Space, User
+from origami.models.api.datasources import DataSource
+from origami.models.api.files import File
+from origami.models.api.kernels import KernelSession
+from origami.models.api.outputs import KernelOutputCollection
+from origami.models.api.projects import Project
+from origami.models.api.spaces import Space
+from origami.models.api.users import User
 from origami.models.notebook import Notebook
-from origami.models.runtime import KernelSession
 from origami.notebook.builder import NotebookBuilder
 
 logger = logging.getLogger(__name__)
@@ -64,28 +70,28 @@ class APIClient:
         return space
 
     async def get_space(self, space_id: uuid.UUID) -> Space:
+        self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = f"/spaces/{space_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         space = Space.parse_obj(resp.json())
-        self.add_tags_and_contextvars(space_id=str(space.id))
         return space
 
     async def delete_space(self, space_id: uuid.UUID) -> Space:
+        self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = f"/spaces/{space_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
         space = Space.parse_obj(resp.json())
-        self.add_tags_and_contextvars(space_id=str(space.id))
         return space
 
     async def list_space_projects(self, space_id: uuid.UUID) -> List[Project]:
         """List all Projects in a Space."""
+        self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = f"/spaces/{space_id}/projects"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         projects = [Project.parse_obj(project) for project in resp.json()]
-        self.add_tags_and_contextvars(space_id=str(space_id))
         return projects
 
     # Projects are collections of Files, including Notebooks. When a Kernel is launched for a
@@ -93,6 +99,7 @@ class APIClient:
     async def create_project(
         self, space_id: uuid.UUID, name: str, description: Optional[str] = None
     ) -> Project:
+        self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = "/projects"
         resp = await self.client.post(
             endpoint, json={'space_id': str(space_id), "name": name, "description": description}
@@ -103,28 +110,28 @@ class APIClient:
         return project
 
     async def get_project(self, project_id: uuid.UUID) -> Project:
+        self.add_tags_and_contextvars(project_id=str(project_id))
         endpoint = f"/projects/{project_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         project = Project.parse_obj(resp.json())
-        self.add_tags_and_contextvars(project_id=str(project.id))
         return project
 
     async def delete_project(self, project_id: uuid.UUID) -> Project:
+        self.add_tags_and_contextvars(project_id=str(project_id))
         endpoint = f"/projects/{project_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
         project = Project.parse_obj(resp.json())
-        self.add_tags_and_contextvars(project_id=str(project.id))
         return project
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
         """List all Files in a Project. Files do not have presigned download urls included here."""
+        self.add_tags_and_contextvars(project_id=str(project_id))
         endpoint = f'/projects/{project_id}/files'
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         files = [File.parse_obj(file) for file in resp.json()]
-        self.add_tags_and_contextvars(project_id=str(project_id))
         return files
 
     # Files are flat files (like text, csv, etc) or Notebooks.
@@ -176,6 +183,7 @@ class APIClient:
 
     async def create_file(self, project_id: uuid.UUID, path: str, content: bytes) -> File:
         """Create a non-Notebook File in a Project"""
+        self.add_tags_and_contextvars(project_id=str(project_id))
         file = await self._multi_step_file_create(project_id, path, "file", content)
         self.add_tags_and_contextvars(file_id=str(file.id))
         logger.info("Created new file", extra={"file_id": str(file.id)})
@@ -185,6 +193,7 @@ class APIClient:
         self, project_id: uuid.UUID, path: str, notebook: Optional[Notebook] = None
     ) -> File:
         """Create a Notebook in a Project"""
+        self.add_tags_and_contextvars(project_id=str(project_id))
         if notebook is None:
             notebook = Notebook()
         content = notebook.json().encode()
@@ -195,15 +204,16 @@ class APIClient:
 
     async def get_file(self, file_id: uuid.UUID) -> File:
         """Get metadata about a File, not including its content. Includes presigned download url."""
+        self.add_tags_and_contextvars(file_id=str(file_id))
         endpoint = f'/v1/files/{file_id}'
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         file = File.parse_obj(resp.json())
-        self.add_tags_and_contextvars(file_id=str(file.id))
         return file
 
     async def get_file_content(self, file_id: uuid.UUID) -> bytes:
         """Get the content of a File, including Notebooks."""
+        self.add_tags_and_contextvars(file_id=str(file_id))
         file = await self.get_file(file_id)
         presigned_download_url = file.presigned_download_url
         if not presigned_download_url:
@@ -214,12 +224,22 @@ class APIClient:
         return resp.content
 
     async def delete_file(self, file_id: uuid.UUID) -> File:
+        self.add_tags_and_contextvars(file_id=str(file_id))
         endpoint = f'/v1/files/{file_id}'
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
         file = File.parse_obj(resp.json())
-        self.add_tags_and_contextvars(file_id=str(file.id))
         return file
+
+    async def get_datasources_for_notebook(self, file_id: uuid.UUID) -> List[DataSource]:
+        """Return a list of Datasources that can be used in SQL cells within a Notebook"""
+        self.add_tags_and_contextvars(file_id=str(file_id))
+        endpoint = f"/v1/datasources/by_notebook/{file_id}"
+        resp = await self.client.get(endpoint)
+        resp.raise_for_status()
+        datasources = pydantic.parse_obj_as(List[DataSource], resp.json())
+
+        return datasources
 
     async def launch_kernel(
         self, file_id: uuid.UUID, kernel_name: str = 'python3', hardware_size: str = 'small'
