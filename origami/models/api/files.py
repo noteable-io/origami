@@ -1,4 +1,5 @@
 import os
+import pathlib
 import uuid
 from typing import Literal, Optional
 
@@ -9,7 +10,7 @@ from origami.models.api.base import ResourceBase
 
 class File(ResourceBase):
     filename: str
-    path: str
+    path: pathlib.Path
     project_id: uuid.UUID
     space_id: uuid.UUID
     size: Optional[int]
