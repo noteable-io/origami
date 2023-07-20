@@ -220,7 +220,11 @@ class APIClient:
             raise ValueError(f"File {file.id} does not have a presigned download url")
         async with httpx.AsyncClient() as plain_http_client:
             resp = await plain_http_client.get(presigned_download_url)
-            resp.raise_for_status()
+            if resp.is_error:
+                logger.warning(
+                    f"Error {resp.status_code} downloading pre-signed url {presigned_download_url}"
+                )
+                resp.raise_for_status()
         return resp.content
 
     async def delete_file(self, file_id: uuid.UUID) -> File:
