@@ -8,8 +8,8 @@ from typing import Annotated, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from origami.models.kernels import CellState, KernelStatusUpdate
 from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
-from origami.models.runtime import CellState, KernelStatusUpdate
 
 
 class KernelsRequest(BaseRTURequest):

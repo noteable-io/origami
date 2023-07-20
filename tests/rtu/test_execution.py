@@ -3,7 +3,7 @@ import asyncio
 from origami.clients.api import APIClient
 from origami.clients.rtu import RTUClient
 from origami.models.api.files import File
-from origami.models.api.kernels import KernelSession
+from origami.models.kernels import KernelSession
 from origami.models.notebook import CodeCell, Notebook
 
 

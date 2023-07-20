@@ -9,11 +9,11 @@ import pydantic
 from origami.clients.rtu import RTUClient
 from origami.models.api.datasources import DataSource
 from origami.models.api.files import File
-from origami.models.api.kernels import KernelSession
 from origami.models.api.outputs import KernelOutputCollection
 from origami.models.api.projects import Project
 from origami.models.api.spaces import Space
 from origami.models.api.users import User
+from origami.models.kernels import KernelSession
 from origami.models.notebook import Notebook
 from origami.notebook.builder import NotebookBuilder
 

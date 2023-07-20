@@ -19,8 +19,8 @@ from typing import Annotated, Any, List, Literal, Optional, Union
 from pydantic import BaseModel, Field, ValidationError, root_validator
 
 from origami.models.deltas.discriminators import FileDelta
+from origami.models.kernels import CellState, KernelDetails
 from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
-from origami.models.runtime import CellState, KernelDetails
 
 
 class FilesRequest(BaseRTURequest):
