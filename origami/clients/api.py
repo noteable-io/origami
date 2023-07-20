@@ -165,6 +165,10 @@ class APIClient:
         file = File.parse_obj(js)
 
         # (2) Upload to pre-signed url
+        # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
+        # localhost urls to the minio pod/container
+        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
+            upload_url = upload_url.replace('localhost', 'minio')
         async with httpx.AsyncClient() as plain_client:
             r = await plain_client.put(upload_url, content=content)
             r.raise_for_status()
@@ -218,6 +222,10 @@ class APIClient:
         presigned_download_url = file.presigned_download_url
         if not presigned_download_url:
             raise ValueError(f"File {file.id} does not have a presigned download url")
+        # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
+        # localhost urls to the minio pod/container
+        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
+            presigned_download_url = presigned_download_url.replace('localhost', 'minio')
         async with httpx.AsyncClient() as plain_http_client:
             resp = await plain_http_client.get(presigned_download_url)
             resp.raise_for_status()
