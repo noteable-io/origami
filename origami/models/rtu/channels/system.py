@@ -14,7 +14,7 @@ from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from origami.models.api_resources import User
+from origami.models.api.users import User
 from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
 
 
