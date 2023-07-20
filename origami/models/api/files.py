@@ -13,13 +13,13 @@ class File(ResourceBase):
     path: pathlib.Path
     project_id: uuid.UUID
     space_id: uuid.UUID
-    size: Optional[int]
-    mimetype: str
+    size: Optional[int] = None
+    mimetype: Optional[str] = None
     type: Literal['file', 'notebook']
-    current_version_id: Optional[uuid.UUID]
+    current_version_id: Optional[uuid.UUID] = None
     # presigned_download_url is None when listing Files in a Project, need to hit /api/v1/files/{id}
     # to get it. Use presigned download url to get File content including Notebooks
-    presigned_download_url: Optional[str]
+    presigned_download_url: Optional[str] = None
     url: Optional[str] = None
 
     @validator("url", always=True)
