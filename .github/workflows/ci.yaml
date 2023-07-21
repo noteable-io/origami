@@ -17,37 +17,41 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Setup nox
-        uses: daisylb/setup-nox@v2.1.0
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v8
         with:
           poetry-version: 1.4.2
       - name: Install dependencies
-        run: |
-          poetry install --all-extras --with dev
-          pip install nox-poetry
-      - name: Run tests
-        run: nox -s test-${{ matrix.python_version }}
-      - name: Generate coverage XML
-        run: nox -s generate_coverage_xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        run: poetry install --all-extras --with dev
+
+      # Tests in Origami 1.0 alpha rc are end-to-end, need a live Noteable app. 
+      # Commenting tests out until we have time to configure Github repo with service account
+      # access token and other settings so it can interact with Noteable from CI tests
+
+      # - name: Run tests with pytest
+      #   run: pytest -v --cov=origami
+
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v3
 
   lint:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Setup nox
-        uses: daisylb/setup-nox@v2.1.0
       - name: Setup poetry
         uses: Gr1N/setup-poetry@v8
         with:
           poetry-version: 1.4.2
       - name: Install dependencies
-        run: |
-          poetry install --all-extras --with dev
-          pip install nox-poetry
-      - name: Run lint
-        run: nox -s lint
+        run: poetry install --all-extras --with dev
+
+      - name: Lint with flake8
+        run: flake8 origami --count --show-source --statistics --benchmark
+
+      - name: Check with black
+        run: black --check origami
+
+      - name: Check with isort
+        run: isort --diff --check origami
+
