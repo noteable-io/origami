@@ -5,13 +5,12 @@ There are six events on the files/<file-id> channel:
 2. unsubscribe_request and unsubscribe_reply
 3. new_delta_request and new_delta_reply (direct) / new_delta_event (broadcast)
  - RTU Errors for invalid_data or permission_denied
-4. update_user_cell_selection_request and 
-     update_user_cell_selection_reply -> update_user_file_subscription_event
+4. update_user_cell_selection_request and
+   update_user_cell_selection_reply -> update_user_file_subscription_event
 5. input_reply_request and input_reply_reply
 6. transform_view_to_code_request and transform_view_to_code_reply (DEX export to code cell)
  - The follow on "event" is a new delta event
 """
-
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, List, Literal, Optional, Union
