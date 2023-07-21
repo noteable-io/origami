@@ -9,7 +9,8 @@ import pytest
 import structlog
 
 from origami.clients.api import APIClient
-from origami.models.api_resources import File, Project
+from origami.models.api.files import File
+from origami.models.api.projects import Project
 from origami.models.notebook import Notebook
 
 logger = structlog.get_logger()
@@ -108,12 +109,12 @@ def api_base_url():
 
 @pytest.fixture
 def test_space_id() -> uuid.UUID:
-    return uuid.UUID('635d2796-7e1d-4da6-9624-aa57e92f1a2a')
+    return uuid.UUID('edc21f3f-fb30-45fb-a30d-668fac0b0e4a')
 
 
 @pytest.fixture
 def test_project_id() -> uuid.UUID:
-    return uuid.UUID('a89375a2-712c-4dad-91bf-8ee90888027d')
+    return uuid.UUID('c34e6a11-cc60-4ab6-9566-10f81a4a46cd')
 
 
 @pytest.fixture
@@ -167,7 +168,8 @@ async def file_maker(api_client: APIClient, test_project_id: uuid.UUID):
 
     yield make_file
     for file_id in file_ids:
-        await api_client.delete_file(file_id)
+        # await api_client.delete_file(file_id)
+        pass
 
 
 @pytest.fixture
@@ -190,4 +192,5 @@ async def notebook_maker(api_client: APIClient, test_project_id: uuid.UUID):
 
     yield make_notebook
     for notebook_id in notebook_ids:
-        await api_client.delete_file(notebook_id)
+        # await api_client.delete_file(notebook_id)
+        pass

@@ -9,7 +9,7 @@ from origami.models.deltas.delta_types.cell_output_collection import CellOutputC
 from origami.models.deltas.delta_types.nb_cells import NBCellsDeltas
 from origami.models.deltas.delta_types.nb_metadata import NBMetadataDeltas
 
-# Use: pydantic.pares_obj_as(FileDelta, <payload-as-dict>)
+# Use: pydantic.parse_obj_as(FileDelta, <payload-as-dict>)
 FileDelta = Annotated[
     Union[
         CellContentsDeltas,

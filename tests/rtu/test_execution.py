@@ -23,9 +23,10 @@ async def test_outputs(api_client: APIClient, notebook_maker):
     # Assert cell_1 output collection has multiple outputs
     cell_1_output_collection_id = await execute_event  # wait for cell_1 to be done
     cell_1_output_collection = await api_client.get_output_collection(cell_1_output_collection_id)
-    assert len(cell_1_output_collection.outputs) == 2
-    assert cell_1_output_collection.outputs[0].content.raw == 'hello world\n'
-    assert cell_1_output_collection.outputs[1].content.raw == '4'
-
-    await rtu_client.shutdown()
-    await api_client.shutdown_kernel(kernel_session.id)
+    try:
+        assert len(cell_1_output_collection.outputs) == 2
+        assert cell_1_output_collection.outputs[0].content.raw == 'hello world\n'
+        assert cell_1_output_collection.outputs[1].content.raw == '4'
+    finally:
+        await rtu_client.shutdown()
+        await api_client.shutdown_kernel(kernel_session.id)
