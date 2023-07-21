@@ -275,7 +275,7 @@ class RTUClient:
         self.register_rtu_event_callback(rtu_event=NewDeltaEvent, fn=self._on_delta_recv)
 
         # Kernel and cell state handling
-        self.kernel_state: str = None
+        self.kernel_state: str = 'not_started'  # value used when there's no Kernel for a Notebook
         self.cell_states: Dict[str, str] = {}
 
         self.register_rtu_event_callback(
