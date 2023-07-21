@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: poetry install --all-extras --with dev
 
-      # Tests in Origami 1.0 alpha rc are end-to-end, need a live Noteable app. 
+      # Tests in Origami 1.0 alpha rc are end-to-end, need a live Noteable app.
       # Commenting tests out until we have time to configure Github repo with service account
       # access token and other settings so it can interact with Noteable from CI tests
 
@@ -54,4 +54,3 @@ jobs:
 
       - name: Check with isort
         run: isort --diff --check origami
-
