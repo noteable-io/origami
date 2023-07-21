@@ -44,7 +44,7 @@ jobs:
         with:
           poetry-version: 1.4.2
       - name: Install dependencies
-        run: poetry install --all-extras --with dev
+        run: pip install flake8 black isort
 
       - name: Lint with flake8
         run: flake8 origami --count --show-source --statistics --benchmark
