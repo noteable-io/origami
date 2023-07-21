@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
 
 class KernelDetails(BaseModel):
     name: str
-    last_activity: datetime
+    last_activity: Optional[datetime] = None
     execution_state: str
 
 

@@ -19,7 +19,7 @@ from typing import Annotated, Any, List, Literal, Optional, Union
 from pydantic import BaseModel, Field, ValidationError, root_validator
 
 from origami.models.deltas.discriminators import FileDelta
-from origami.models.kernels import CellState, KernelDetails
+from origami.models.kernels import CellState, KernelStatusUpdate
 from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
 
 
@@ -64,7 +64,7 @@ class FileSubscribeRequest(FilesRequest):
 class FileSubscribeReplyData(BaseModel):
     deltas_to_apply: List[FileDelta]
     latest_delta_id: uuid.UUID
-    kernel_session: Optional[KernelDetails]  # null if no active Kernel for the File
+    kernel_session: Optional[KernelStatusUpdate]  # null if no active Kernel for the File
     cell_states: List[CellState]
     # TODO: user_subscriptions
 
