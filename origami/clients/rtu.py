@@ -500,7 +500,7 @@ class RTUClient:
         """
         # Kernel and cell states if there is a live Kernel
         if msg.data.kernel_session:
-            self.kernel_state = msg.data.kernel_session.execution_state
+            self.kernel_state = msg.data.kernel_session.kernel.execution_state
         if msg.data.cell_states:
             self.cell_states = {item.cell_id: item.state for item in msg.data.cell_states}
 
