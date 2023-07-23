@@ -84,11 +84,6 @@ def setup_logging():
                     "level": 'INFO',
                     "propagate": True,
                 },
-                "origami": {
-                    "handlers": ["default"],
-                    "level": 'DEBUG',
-                    "propagate": False,
-                },
             },
         }
     )
