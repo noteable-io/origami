@@ -739,7 +739,7 @@ class RTUClient:
         cell_id: Optional[str] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
-        run_all: Optional[bool] = None,
+        run_all: bool = False,
     ) -> Union[asyncio.Future[CodeCell], List[asyncio.Future[CodeCell]]]:
         """
         Execute an individual cell or multiple cells in the Notebook. The return value is a single
@@ -761,7 +761,7 @@ class RTUClient:
             return future
 
         # Multiple cell flow
-        if before_id is None and after_id is None and run_all is None:
+        if not before_id and not after_id and not run_all:
             raise ValueError("One of cell_id, before_id, after_id, or run_all must be set.")
         if before_id:
             idx, cell = self.builder.get_cell(before_id)  # can raise CellNotFound
