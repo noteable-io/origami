@@ -705,11 +705,20 @@ class RTUClient:
         return await req.result
 
     async def add_cell(
-        self, cell: Optional[NotebookCell] = None, after_id: Optional[str] = None
+        self,
+        cell: Optional[NotebookCell] = None,
+        before_id: Optional[str] = None,
+        after_id: Optional[str] = None,
     ) -> NotebookCell:
+        """
+        Adds a Cell to the Notebook. If before_id and after_id are unspecified, then it will add
+        the new cell at the bottom of the notebook.
+        """
         if not cell:
             cell = CodeCell()
-        props = NBCellsAddProperties(cell=cell, after_id=after_id, id=cell.id)
+        if not before_id and not after_id:
+            after_id = self.cell_ids[-1]
+        props = NBCellsAddProperties(cell=cell, before_id=before_id, after_id=after_id, id=cell.id)
         delta = NBCellsAdd(file_id=self.file_id, properties=props)
         await self.new_delta_request(delta)
         return cell
