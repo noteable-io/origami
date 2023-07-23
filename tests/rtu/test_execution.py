@@ -3,6 +3,7 @@ import asyncio
 from origami.clients.api import APIClient
 from origami.clients.rtu import RTUClient
 from origami.models.api.files import File
+from origami.models.api.outputs import KernelOutputCollection
 from origami.models.kernels import KernelSession
 from origami.models.notebook import CodeCell, Notebook
 
@@ -19,14 +20,16 @@ async def test_outputs(api_client: APIClient, notebook_maker):
     kernel_session: KernelSession = await api_client.launch_kernel(file.id)
     await rtu_client.wait_for_kernel_idle()
 
-    execute_event = await rtu_client.execute_cell('cell_1')
+    queued_execution = await rtu_client.queue_execute('cell_1')
     # Assert cell_1 output collection has multiple outputs
-    cell_1_output_collection_id = await execute_event  # wait for cell_1 to be done
-    cell_1_output_collection = await api_client.get_output_collection(cell_1_output_collection_id)
+    cell: CodeCell = await queued_execution  # wait for cell_1 to be done
+    output_collection: KernelOutputCollection = await api_client.get_output_collection(
+        cell.output_collection_id
+    )
     try:
-        assert len(cell_1_output_collection.outputs) == 2
-        assert cell_1_output_collection.outputs[0].content.raw == 'hello world\n'
-        assert cell_1_output_collection.outputs[1].content.raw == '4'
+        assert len(output_collection.outputs) == 2
+        assert output_collection.outputs[0].content.raw == 'hello world\n'
+        assert output_collection.outputs[1].content.raw == '4'
     finally:
         await rtu_client.shutdown()
         await api_client.shutdown_kernel(kernel_session.id)

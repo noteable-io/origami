@@ -8,14 +8,20 @@ import asyncio
 import logging
 import traceback
 import uuid
-from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type
+import warnings
+from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type, Union
 
 import orjson
 from pydantic import BaseModel, parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
-from origami.models.deltas.delta_types.cell_execute import CellExecute, CellExecuteAll
+from origami.models.deltas.delta_types.cell_execute import (
+    CellExecute,
+    CellExecuteAfter,
+    CellExecuteAll,
+    CellExecuteBefore,
+)
 from origami.models.deltas.delta_types.nb_cells import (
     NBCellsAdd,
     NBCellsAddProperties,
@@ -293,8 +299,8 @@ class RTUClient:
         self.manager.register_callback(self._on_unmodeled_rtu_msg, on_predicate=predicate_fn)
 
         # When someone calls .execute_cell, return an asyncio.Future that will be resolved to be
-        # the output collection id of the cell when it is finished running (or None if no output)
-        self._execute_cell_events: Dict[str, asyncio.Future[Optional[uuid.UUID]]] = {}
+        # the updated Cell model when the cell is done executing
+        self._execute_cell_events: Dict[str, asyncio.Future[CodeCell]] = {}
 
     @property
     def cell_ids(self):
@@ -662,7 +668,7 @@ class RTUClient:
         for item in msg.data.cell_states:
             if item.cell_id in self._execute_cell_events:
                 # When we see that a cell we're monitoring has finished, resolve the Future to
-                # be the cell output collection id.
+                # be the cell
                 if item.state in ['finished_with_error', 'finished_with_no_error']:
                     logger.info(
                         "Cell execution for monitored cell finished",
@@ -675,8 +681,9 @@ class RTUClient:
                     if not fut.done():
                         try:
                             _, cell = self.builder.get_cell(item.cell_id)
-                            fut.set_result(cell.output_collection_id)
+                            fut.set_result(cell)
                         except CellNotFound:
+                            # This could happen if a cell was deleted in the middle of execution
                             logger.warning(
                                 "Cell execution finished for cell that doesn't exist in Notebook",
                                 extra={
@@ -727,12 +734,64 @@ class RTUClient:
         delta = NBCellsDelete(file_id=self.file_id, properties={'id': cell_id})
         await self.new_delta_request(delta)
 
+    async def queue_execute(
+        self,
+        cell_id: Optional[str] = None,
+        before_id: Optional[str] = None,
+        after_id: Optional[str] = None,
+        run_all: Optional[bool] = None,
+    ) -> Union[asyncio.Future[CodeCell], List[asyncio.Future[CodeCell]]]:
+        """
+        Execute an individual cell or multiple cells in the Notebook. The return value is a single
+        Future or list of Futures that will resolve to the CodeCell executed when the cell has
+        finished running.
+         - Only code Cells can be executed. When running multiple cells with before / after / all
+           non-code cells will be excluded automatically
+         - Outputs should be available from the cell.output_collection_id property.
+        """
+        # Single cell flow, return a single Future
+        if cell_id:
+            idx, cell = self.builder.get_cell(cell_id)  # can raise CellNotFound
+            if cell.cell_type != 'code':
+                raise ValueError("Can only queue execute on code cells")
+            future = asyncio.Future()
+            self._execute_cell_events[cell_id] = future
+            delta = CellExecute(file_id=self.file_id, resource_id=cell_id)
+            await self.new_delta_request(delta)
+            return future
+
+        # Multiple cell flow
+        if before_id is None and after_id is None and run_all is None:
+            raise ValueError("One of cell_id, before_id, after_id, or run_all must be set.")
+        if before_id:
+            idx, cell = self.builder.get_cell(before_id)  # can raise CellNotFound
+            cell_ids = self.cell_ids[: idx + 1]  # inclusive of the "before_id" cell
+            delta = CellExecuteBefore(file_id=self.file_id, resource_id=before_id)
+        elif after_id:
+            idx, cell = self.builder.get_cell(after_id)  # can raise CellNotFound
+            cell_ids = self.cell_ids[idx:]  # inclusive of the "after_id" cell
+            delta = CellExecuteAfter(file_id=self.file_id, resource_id=after_id)
+        else:
+            cell_ids = self.cell_ids[:]
+            delta = CellExecuteAll(file_id=self.file_id)
+        futures = []
+        for cell_id in cell_ids:
+            # Only create futures for Code cells
+            future = asyncio.Future()
+            idx, cell = self.builder.get_cell(cell_id)
+            if cell.cell_type == 'code':
+                self._execute_cell_events[cell_id] = future
+                futures.append(future)
+        await self.new_delta_request(delta)
+        return futures
+
     async def execute_cell(self, cell_id: str) -> asyncio.Future[Optional[uuid.UUID]]:
         """
         Send a new delta request for cell execution by cell id. The returned Future will be resolved
         to the output collection id of the Cell when it has finished running (or None if there is
         no output).
         """
+        warnings.warn("Deprecated: use .queue_execution")
         execute_event = asyncio.Future()
         self._execute_cell_events[cell_id] = execute_event
         delta = CellExecute(file_id=self.file_id, resource_id=cell_id)
@@ -740,6 +799,7 @@ class RTUClient:
         return execute_event
 
     async def execute_all(self) -> List[asyncio.Future[Optional[uuid.UUID]]]:
+        warnings.warn("Deprecated: use .queue_execution")
         for cell_id in self.cell_ids:
             self._execute_cell_events[cell_id] = asyncio.Future()
         delta = CellExecuteAll(file_id=self.file_id)
