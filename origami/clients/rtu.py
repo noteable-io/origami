@@ -223,6 +223,7 @@ class RTUClient:
         file_version_id: uuid.UUID,
         builder: NotebookBuilder,
         rtu_client_type: str = 'origami',
+        file_subscribe_timeout: int = 10,
     ):
         """
         High-level client over the Sending websocket backend / RTUManager (serialize websocket msgs
@@ -254,6 +255,11 @@ class RTUClient:
         self.builder = builder
         self.rtu_client_type = rtu_client_type
         self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
+        # When we send file subscribe request, it'll create a task to run .on_file_subscribe_timeout
+        # which should blow up the RTU Client. Otherwise we can get stuck indefinitely waiting
+        # for .deltas_to_apply event. If we get through initialization okay, the task will cancel
+        self.file_subcribe_timeout = file_subscribe_timeout
+        self.file_subscribe_timeout_task: Optional[asyncio.Task] = None
 
         self.rtu_session_id = None
 
@@ -323,7 +329,7 @@ class RTUClient:
 
     async def _on_unmodeled_rtu_msg(self, msg: BaseRTUResponse):
         logger.warning(
-            "Received un-modeled RTU message",
+            f"Received un-modeled RTU message {msg.channel=} {msg.event=}",
             extra={"rtu_channel": msg.channel, "rtu_event": msg.event},
         )
 
@@ -485,7 +491,17 @@ class RTUClient:
                 "Sending File subscribe request by version id",
                 extra={'from_version_id': str(req.data.from_version_id)},
             )
+        self.file_subscribe_timeout_task = asyncio.create_task(self.on_file_subscribe_timeout)
         self.manager.send(req)
+
+    async def on_file_subscribe_timeout(self):
+        """
+        Hook for Application code to override if we don't get the expected file subscribe reply
+        after some amount of seconds. Without a timeout, RTU Clients can easily get stuck forever
+        awaiting the .deltas_to_apply event that is resolved in file subscribe reply.
+        """
+        await asyncio.sleep(self.file_subcribe_timeout)
+        raise RuntimeError("File subscribe reply timeout")
 
     async def on_file_subscribe(self, msg: FileSubscribeReply):
         # hook for Application code to override if it wants to do something special with
@@ -524,6 +540,11 @@ class RTUClient:
         if not self.builder.last_applied_delta_id:
             self.builder.last_applied_delta_id = msg.data.latest_delta_id
         await self.replay_unapplied_deltas()
+        
+        # Cancel the timeout task, should always exist but guarding against unexpected runtime err
+        if self.file_subscribe_timeout_task:
+            self.file_subscribe_timeout_task.cancel()
+            
         # Now all "Delta catchup" and "inflight Deltas" have been processed.
         # Application code may want to do extra things like subscribe to kernels channel or users
         # channel for each msg.data['user_subscriptions'].
