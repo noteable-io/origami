@@ -492,6 +492,7 @@ class RTUClient:
                 extra={'from_version_id': str(req.data.from_version_id)},
             )
         self.file_subscribe_timeout_task = asyncio.create_task(self.on_file_subscribe_timeout)
+        logger.critical(req)
         self.manager.send(req)
 
     async def on_file_subscribe_timeout(self):
@@ -501,6 +502,7 @@ class RTUClient:
         awaiting the .deltas_to_apply event that is resolved in file subscribe reply.
         """
         await asyncio.sleep(self.file_subcribe_timeout)
+        logger.exception("File subscribe timeout reached")
         raise RuntimeError("File subscribe reply timeout")
 
     async def on_file_subscribe(self, msg: FileSubscribeReply):
