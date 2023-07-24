@@ -1,6 +1,45 @@
 # Origami
 
-Origami is a Python SDK for the [Noteable](https://noteable.io/) platform. You can use it to create Notebooks, add code or markdown, and execute cells programmatically.
+<p align="center">
+<img src="docs/papersnake.svg" width="250px" />
+<br />
+Launch, edit, and share Jupyter notebooks <i>in automation</i>.
+</p>
+
+<p align="center">
+<a href="https://github.com/noteable-io/origami/actions/workflows/ci.yaml">
+    <img src="https://github.com/noteable-io/origami/actions/workflows/ci.yaml/badge.svg" alt="CI" />
+</a>
+<a href="https://codecov.io/gh/noteable-io/origami" > 
+ <img src="https://codecov.io/gh/noteable-io/origami/branch/main/graph/badge.svg" alt="codecov code coverage"/> 
+ </a>
+<img alt="PyPI - License" src="https://img.shields.io/pypi/l/noteable-origami" />
+<img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/noteable-origami" />
+<img alt="PyPI" src="https://img.shields.io/pypi/v/noteable-origami">
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+</p>
+
+---
+
+[Install](#installation) | [Getting Started](#getting-started) | [Documentation](https://noteable-origami.readthedocs.io) | [License](./LICENSE) | [Code of Conduct](./CODE_OF_CONDUCT.md) | [Contributing](./CONTRIBUTING.md)
+
+<!-- --8<-- [start:intro] -->
+
+## Intro to Origami
+
+Origami is a 🐍 Python library for talking to [Noteable notebooks](https://noteable.io/). This is the official way to access the full breadth of API calls and access patterns in async Python for rich programmatic access to notebooks. You can use [Noteable for free](https://app.noteable.io) with a quick signup.
+
+<!-- --8<-- [end:intro] -->
+
+<!-- --8<-- [start:requirements] -->
+
+## Requirements
+
+Python 3.8+
+
+<!-- --8<-- [end:requirements] -->
+
+<!-- --8<-- [start:install] -->
 
 ## Installation
 
@@ -18,15 +57,21 @@ For alpha pre-release:
 pip install noteable-origami --pre
 ```
 
+<!-- --8<-- [end:install] -->
 
-## API Tokens
+<!-- --8<-- [start:start] -->
+
+## Getting Started
+
+
+### API Tokens
 
 The Noteable API requires an authentication token. You can manage tokens at the Noteable user settings page.
 
 1. Log in to Noteable (sign up is free)
 2. In the User Settings tab, navigate to `API Tokens` and generate a new token
 
-## Usage
+### Usage
 
 The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code. 
 
@@ -65,6 +110,18 @@ output_collection.outputs[0].content.raw
 >>> 'Hello World\n'
 ```
 
+<!-- --8<-- [end:start] -->
+
+
 ## 1.0 Roadmap
 
 Origami is heading towards a 1.0 release. The alpha release candidate is on Pypi now, installable with a `--pre` flag. The 1.0 release represents a major refactor of the Origami using the best practices and lessons learned from creating multiple production API and RTU clients, including our ChatGPT plugin. It will likely come out of alpha once all of our internal applications are using the Origami 1.0 syntax.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+<p align="center">Open sourced with ❤️ by <a href="https://noteable.io">Noteable</a> for the community.</p>
+
+<img href="https://pages.noteable.io/private-beta-access" src="https://assets.noteable.io/github/2022-07-29/noteable.png" alt="Boost Data Collaboration with Notebooks">
