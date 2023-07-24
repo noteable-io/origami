@@ -492,7 +492,6 @@ class RTUClient:
                 extra={'from_version_id': str(req.data.from_version_id)},
             )
         self.file_subscribe_timeout_task = asyncio.create_task(self.on_file_subscribe_timeout())
-        logger.critical(req)
         self.manager.send(req)
 
     async def on_file_subscribe_timeout(self):
