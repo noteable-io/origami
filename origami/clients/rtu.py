@@ -100,7 +100,6 @@ class RTUManager(WebsocketManager):
 
     def send(self, message: RTURequest) -> None:
         """Override WebsocketManager-defined method for type hinting and logging."""
-        super().send(message)  # the .outbound_message_hook handles serializing this to json
         # all this extra stuff is just for logging
         extra_dict = {
             "rtu_event": message.event,
@@ -110,6 +109,7 @@ class RTUManager(WebsocketManager):
             extra_dict["delta_type"] = message.data.delta.delta_type
             extra_dict["delta_action"] = message.data.delta.delta_action
         logger.debug("Sending: RTU request", extra=extra_dict)
+        super().send(message)  # the .outbound_message_hook handles serializing this to json
 
     async def on_exception(self, exc: Exception):
         """
@@ -540,11 +540,11 @@ class RTUClient:
         if not self.builder.last_applied_delta_id:
             self.builder.last_applied_delta_id = msg.data.latest_delta_id
         await self.replay_unapplied_deltas()
-        
+
         # Cancel the timeout task, should always exist but guarding against unexpected runtime err
         if self.file_subscribe_timeout_task:
             self.file_subscribe_timeout_task.cancel()
-            
+
         # Now all "Delta catchup" and "inflight Deltas" have been processed.
         # Application code may want to do extra things like subscribe to kernels channel or users
         # channel for each msg.data['user_subscriptions'].
