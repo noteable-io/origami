@@ -8,7 +8,6 @@ import asyncio
 import logging
 import traceback
 import uuid
-import warnings
 from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type, Union
 
 import orjson
@@ -745,7 +744,8 @@ class RTUClient:
         """
         if not cell:
             cell = CodeCell()
-        if not before_id and not after_id:
+        # Default behavior: add cell to end of Notebook. Guard against a Notebook with no cells
+        if not before_id and not after_id and self.cell_ids:
             after_id = self.cell_ids[-1]
         props = NBCellsAddProperties(cell=cell, before_id=before_id, after_id=after_id, id=cell.id)
         delta = NBCellsAdd(file_id=self.file_id, properties=props)
@@ -756,7 +756,7 @@ class RTUClient:
         delta = NBCellsDelete(file_id=self.file_id, properties={'id': cell_id})
         await self.new_delta_request(delta)
 
-    async def queue_execute(
+    async def queue_execution(
         self,
         cell_id: Optional[str] = None,
         before_id: Optional[str] = None,
@@ -806,24 +806,3 @@ class RTUClient:
                 futures.append(future)
         await self.new_delta_request(delta)
         return futures
-
-    async def execute_cell(self, cell_id: str) -> asyncio.Future[Optional[uuid.UUID]]:
-        """
-        Send a new delta request for cell execution by cell id. The returned Future will be resolved
-        to the output collection id of the Cell when it has finished running (or None if there is
-        no output).
-        """
-        warnings.warn("Deprecated: use .queue_execution")
-        execute_event = asyncio.Future()
-        self._execute_cell_events[cell_id] = execute_event
-        delta = CellExecute(file_id=self.file_id, resource_id=cell_id)
-        await self.new_delta_request(delta)
-        return execute_event
-
-    async def execute_all(self) -> List[asyncio.Future[Optional[uuid.UUID]]]:
-        warnings.warn("Deprecated: use .queue_execution")
-        for cell_id in self.cell_ids:
-            self._execute_cell_events[cell_id] = asyncio.Future()
-        delta = CellExecuteAll(file_id=self.file_id)
-        await self.new_delta_request(delta)
-        return list(self._execute_cell_events.values())
