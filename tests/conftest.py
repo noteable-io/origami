@@ -18,6 +18,7 @@ logger = structlog.get_logger()
 
 @pytest.fixture(autouse=True, scope='session')
 def setup_logging():
+    """Configure structlog in tests the same way we do in production apps"""
     structlog.configure(
         processors=[
             structlog.stdlib.PositionalArgumentsFormatter(),
@@ -99,21 +100,25 @@ def jwt():
 
 @pytest.fixture
 def api_base_url():
+    # TODO: use env var or otherwise make configurable for CI
     return 'http://localhost:8001/api'
 
 
 @pytest.fixture
 def test_space_id() -> uuid.UUID:
+    # TODO: use env var or otherwise make configurable for CI
     return uuid.UUID('edc21f3f-fb30-45fb-a30d-668fac0b0e4a')
 
 
 @pytest.fixture
 def test_project_id() -> uuid.UUID:
+    # TODO: use env var or otherwise make configurable for CI
     return uuid.UUID('c34e6a11-cc60-4ab6-9566-10f81a4a46cd')
 
 
 @pytest.fixture
 def test_user_id() -> uuid.UUID:
+    # TODO: use env var or otherwise make configurable for CI
     return uuid.UUID('f9dfb1b5-7ae4-477c-818f-08d0732018d3')
 
 
@@ -133,12 +138,15 @@ class LogWarningTransport(httpx.AsyncHTTPTransport):
 @pytest.fixture
 def api_client(api_base_url, jwt) -> APIClient:
     return APIClient(
-        authorization_token=jwt, api_base_url=api_base_url, transport=LogWarningTransport()
+        authorization_token=jwt,
+        api_base_url=api_base_url,
+        transport=LogWarningTransport(),
     )
 
 
 @pytest.fixture
 async def new_project(api_client: APIClient, test_space_id: uuid.UUID) -> Project:
+    """Create and cleanup a new Project"""
     name = 'test-project-' + str(uuid.uuid4())
     new_project = await api_client.create_project(name=name, space_id=test_space_id)
     yield new_project
@@ -147,6 +155,7 @@ async def new_project(api_client: APIClient, test_space_id: uuid.UUID) -> Projec
 
 @pytest.fixture
 async def file_maker(api_client: APIClient, test_project_id: uuid.UUID):
+    """Create and cleanup non-Notebook files"""
     file_ids = []
 
     async def make_file(
@@ -163,12 +172,12 @@ async def file_maker(api_client: APIClient, test_project_id: uuid.UUID):
 
     yield make_file
     for file_id in file_ids:
-        # await api_client.delete_file(file_id)
-        pass
+        await api_client.delete_file(file_id)
 
 
 @pytest.fixture
 async def notebook_maker(api_client: APIClient, test_project_id: uuid.UUID):
+    """Create and cleanup Notebook files"""
     notebook_ids = []
 
     async def make_notebook(
@@ -187,5 +196,4 @@ async def notebook_maker(api_client: APIClient, test_project_id: uuid.UUID):
 
     yield make_notebook
     for notebook_id in notebook_ids:
-        # await api_client.delete_file(notebook_id)
-        pass
+        await api_client.delete_file(notebook_id)

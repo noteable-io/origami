@@ -20,7 +20,7 @@ async def test_single_cell(api_client: APIClient, notebook_maker):
     kernel_session: KernelSession = await api_client.launch_kernel(file.id)
     await rtu_client.wait_for_kernel_idle()
 
-    queued_execution = await rtu_client.queue_execute('cell_1')
+    queued_execution = await rtu_client.queue_execution('cell_1')
     # Assert cell_1 output collection has multiple outputs
     cell: CodeCell = await queued_execution  # wait for cell_1 to be done
     output_collection: KernelOutputCollection = await api_client.get_output_collection(
@@ -53,7 +53,7 @@ async def test_run_all(api_client: APIClient, notebook_maker):
     kernel_session: KernelSession = await api_client.launch_kernel(file.id)
     await rtu_client.wait_for_kernel_idle()
 
-    queued_execution = await rtu_client.queue_execute(run_all=True)
+    queued_execution = await rtu_client.queue_execution(run_all=True)
     # should only get two futures back, one for each code cell
     assert len(queued_execution) == 2
     cells = await asyncio.gather(*queued_execution)
