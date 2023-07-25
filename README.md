@@ -43,16 +43,18 @@ Python 3.8+
 
 ## Installation
 
-### Poetry
+For stable release:
+```bash
+pip install noteable-origami
+```
 
-```shell
+```bash
 poetry add noteable-origami
 ```
 
-### Pip
-
-```shell
-pip install noteable-origami
+For alpha pre-release:
+```bash
+pip install noteable-origami --pre
 ```
 
 <!-- --8<-- [end:install] -->
@@ -61,56 +63,73 @@ pip install noteable-origami
 
 ## Getting Started
 
-Get your API token from Noteable within user settings.
-Within user settings, go to the API Token page, and generate a new token.
+> **Warning**
+Developer note: this documentation is written for the 1.0 alpha release. For stable release, see [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)
+
+
+### API Tokens
+
+The Noteable API requires an authentication token. You can manage tokens at the Noteable user settings page.
+
+1. Log in to Noteable (sign up is free)
+2. In the User Settings tab, navigate to `API Tokens` and generate a new token
+
+### Usage
+
+The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code. 
 
 ```python
-from origami.client import NoteableClient
+# Grab a project_id from the Noteable UI, the url will look like: app.noteable.io/p/....
+api_token = '...'
 
-token = ''  # Your API token from Noteable
+# Client for interacting with Noteables REST API
+from origami.clients.api import APIClient
+api_client = APIClient(api_token)
 
-# Establish a connection to the realtime API
-async with NoteableClient(api_token=token) as client:
-    await client.ping_rtu()
+# Sanity check your user information
+user = await api_client.user_info()
+
+# Choose a project to create the notebook in, here using the ChatGPT plugin default project
+project_id = user.origamist_default_project_id
+
+# Create a new Notebook
+file = await api_client.create_notebook(project_id=project_id, path="Demo.ipynb")
+
+# Start a Kernel
+await api_client.launch_kernel(file.id)
+
+# Client for Real-time Updates (RTU), used with Notebooks
+rtu_client = await api_client.rtu_client(file.id)
+
+# Add a new cell
+from origami.models.notebook import CodeCell
+cell = CodeCell(source="print('Hello World')")
+await rtu_client.add_cell(cell)
+
+# Execute the cell
+queued_execution = await rtu_client.queue_execution(cell.id)
+
+# Wait for the execution to be complete, cell is an updated instance of CodeCell with metadata/outputs
+cell = await queued_execution
+
+# Grab the output
+output_collection = await api_client.get_output_collection(cell.output_collection_id)
+print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 ```
 
-### Token via Environment Variable
-
-Alternatively you can set the environment variable:
-
-```bash
-NOTEABLE_TOKEN=xxxx
-```
-
-and skip assigning the token:
-
-```python
-async with NoteableClient() as client:
-    await client.ping_rtu()
-```
-
-### Custom Domain
-
-```bash
-NOTEABLE_TOKEN=xxxx
-NOTEABLE_DOMAIN=app.noteable.io
-```
-
-And the client will use that particular domain, for custom deployment location. This value defaults to `app.noteable.io`.
-
-```python
-async with NoteableClient() as client:
-    await client.ping_rtu()
-```
 
 <!-- --8<-- [end:start] -->
+
+
+## 1.0 Roadmap
+
+Origami is heading towards a 1.0 release. The alpha release candidate is on Pypi now, installable with a `--pre` flag. The 1.0 release represents a major refactor of the Origami using the best practices and lessons learned from creating multiple production API and RTU clients, including our ChatGPT plugin. It will likely come out of alpha once all of our internal applications are using the Origami 1.0 syntax.
 
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
-
 <p align="center">Open sourced with ❤️ by <a href="https://noteable.io">Noteable</a> for the community.</p>
 
 <img href="https://pages.noteable.io/private-beta-access" src="https://assets.noteable.io/github/2022-07-29/noteable.png" alt="Boost Data Collaboration with Notebooks">
