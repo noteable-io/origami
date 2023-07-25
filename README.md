@@ -63,6 +63,9 @@ pip install noteable-origami --pre
 
 ## Getting Started
 
+> **Warning**
+Developer note: this documentation is written for the 1.0 alpha release. For stable release, see [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)
+
 
 ### API Tokens
 
@@ -78,11 +81,16 @@ The example below shows how to create a Notebook, launch a Kernel, add new cells
 ```python
 # Grab a project_id from the Noteable UI, the url will look like: app.noteable.io/p/....
 api_token = '...'
-project_id = '...'
 
 # Client for interacting with Noteables REST API
 from origami.clients.api import APIClient
 api_client = APIClient(api_token)
+
+# Sanity check your user information
+user = await api_client.user_info()
+
+# Choose a project to create the notebook in, here using the ChatGPT plugin default project
+project_id = user.origamist_default_project_id
 
 # Create a new Notebook
 file = await api_client.create_notebook(project_id=project_id, path="Demo.ipynb")
@@ -99,16 +107,16 @@ cell = CodeCell(source="print('Hello World')")
 await rtu_client.add_cell(cell)
 
 # Execute the cell
-queued_execution = await rtu_client.execute_cell(cell.id)
+queued_execution = await rtu_client.queue_execution(cell.id)
 
-# Wait for the execution to be complete
+# Wait for the execution to be complete, cell is an updated instance of CodeCell with metadata/outputs
 cell = await queued_execution
 
 # Grab the output
 output_collection = await api_client.get_output_collection(cell.output_collection_id)
-output_collection.outputs[0].content.raw
->>> 'Hello World\n'
+print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 ```
+
 
 <!-- --8<-- [end:start] -->
 
