@@ -13,7 +13,7 @@ async def test_add_and_remove_cell(api_client: APIClient, notebook_maker):
     file: File = await notebook_maker()
     # TODO: remove sleep when Gate stops permission denied on newly created files (db time-travel)
     await asyncio.sleep(2)
-    rtu_client: RTUClient = await api_client.rtu_client(file.id)
+    rtu_client: RTUClient = await api_client.connect_realtime(file)
     assert rtu_client.builder.nb.cells == []
 
     cell = CodeCell(id='cell_1', source='print("hello world")')

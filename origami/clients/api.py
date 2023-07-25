@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 import httpx
 import pydantic
@@ -284,7 +284,7 @@ class APIClient:
         resp.raise_for_status()
         return KernelOutputCollection.parse_obj(resp.json())
 
-    async def rtu_client(self, file_id: uuid.UUID) -> RTUClient:
+    async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> RTUClient:
         """
         Create an RTUClient for a Notebook by file id. This will perform the following steps:
          - Check /v1/files to get the current version information and presigned download url
@@ -292,6 +292,19 @@ class APIClient:
          - Create an RTUClient, initialize the websocket connection, authenticate, and subscribe
          - Apply delts to in-memory NotebookBuilder
         """
+        file_id = None
+
+        if isinstance(file, str):
+            file_id = uuid.UUID(file)
+        elif isinstance(file, uuid.UUID):
+            file_id = file
+        elif isinstance(file, File):
+            file_id = file.id
+        else:
+            raise ValueError(f"Must provide a `file_id` or a File, not {file}")
+
+        self.add_tags_and_contextvars(file_id=str(file_id))
+
         logger.info(f"Creating RTUClient for file {file_id}")
         file = await self.get_file(file_id)
         if file.type != 'notebook':

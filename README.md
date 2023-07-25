@@ -44,6 +44,7 @@ Python 3.8+
 ## Installation
 
 For stable release:
+
 ```bash
 pip install noteable-origami
 ```
@@ -53,6 +54,7 @@ poetry add noteable-origami
 ```
 
 For alpha pre-release:
+
 ```bash
 pip install noteable-origami --pre
 ```
@@ -64,8 +66,7 @@ pip install noteable-origami --pre
 ## Getting Started
 
 > **Warning**
-Developer note: this documentation is written for the 1.0 alpha release. For stable release, see [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)
-
+> Developer note: this documentation is written for the 1.0 alpha release. For stable release, see [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)
 
 ### API Tokens
 
@@ -76,7 +77,7 @@ The Noteable API requires an authentication token. You can manage tokens at the 
 
 ### Usage
 
-The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code. 
+The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code.
 
 ```python
 # Grab a project_id from the Noteable UI, the url will look like: app.noteable.io/p/....
@@ -99,15 +100,15 @@ file = await api_client.create_notebook(project_id=project_id, path="Demo.ipynb"
 await api_client.launch_kernel(file.id)
 
 # Client for Real-time Updates (RTU), used with Notebooks
-rtu_client = await api_client.rtu_client(file.id)
+realtime_notebook = await api_client.connect_realtime(file)
 
 # Add a new cell
 from origami.models.notebook import CodeCell
 cell = CodeCell(source="print('Hello World')")
-await rtu_client.add_cell(cell)
+await realtime_notebook.add_cell(cell)
 
 # Execute the cell
-queued_execution = await rtu_client.queue_execution(cell.id)
+queued_execution = await realtime_notebook.queue_execution(cell.id)
 
 # Wait for the execution to be complete, cell is an updated instance of CodeCell with metadata/outputs
 cell = await queued_execution
@@ -117,9 +118,7 @@ output_collection = await api_client.get_output_collection(cell.output_collectio
 print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 ```
 
-
 <!-- --8<-- [end:start] -->
-
 
 ## 1.0 Roadmap
 
@@ -130,6 +129,7 @@ Origami is heading towards a 1.0 release. The alpha release candidate is on Pypi
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
+
 <p align="center">Open sourced with ❤️ by <a href="https://noteable.io">Noteable</a> for the community.</p>
 
 <img href="https://pages.noteable.io/private-beta-access" src="https://assets.noteable.io/github/2022-07-29/noteable.png" alt="Boost Data Collaboration with Notebooks">
