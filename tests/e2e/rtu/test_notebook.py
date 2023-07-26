@@ -45,6 +45,5 @@ async def test_change_cell_type(api_client: APIClient, notebook_maker):
     _, cell = rtu_client.builder.get_cell(source_cell.id)
     assert cell.cell_type == 'code'
     assert cell.is_sql_cell
-    assert cell.is_sql_cell
 
     await rtu_client.shutdown()
