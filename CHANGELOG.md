@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+
+## [1.0.0-alpha.2] - 2023-07-26
 ### Changed
 - `api_client.rtu_client` method renamed to `api_client.connect_realtime`, can accept `File` model in addition to `str` / `UUID`
 
