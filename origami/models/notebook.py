@@ -159,4 +159,3 @@ class Notebook(BaseModel):
     @property
     def language_version(self) -> Optional[str]:
         return self.metadata.get("language_info", {}).get("version")
-        return self.metadata.get("language_info", {}).get("version")
