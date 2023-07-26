@@ -9,6 +9,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 ## [Unreleased]
 ### Added
 - `origami.models.notebook.make_sql_cell` convenience function, returns a `CodeCell` with appropriate metadata
+- `rtu_client.change_cell_type` to switch between code, markdown, and sql cells
 
 ## [1.0.0-alpha.2] - 2023-07-26
 ### Changed

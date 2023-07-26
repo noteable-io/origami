@@ -6,6 +6,8 @@ Deltas by delta type and delta action.
 """
 import asyncio
 import logging
+import random
+import string
 import traceback
 import uuid
 from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type, Union
@@ -21,6 +23,7 @@ from origami.models.deltas.delta_types.cell_execute import (
     CellExecuteAll,
     CellExecuteBefore,
 )
+from origami.models.deltas.delta_types.cell_metadata import CellMetadataReplace, CellMetadataUpdate
 from origami.models.deltas.delta_types.nb_cells import (
     NBCellsAdd,
     NBCellsAddProperties,
@@ -734,27 +737,90 @@ class RTUClient:
 
     async def add_cell(
         self,
+        source: str = '',
         cell: Optional[NotebookCell] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
     ) -> NotebookCell:
         """
-        Adds a Cell to the Notebook. If before_id and after_id are unspecified, then it will add
-        the new cell at the bottom of the notebook.
+        Adds a Cell to the Notebook.
+         - if a cell is passed in, will use that or otherwise make a CodeCell from source value
+         - If before_id and after_id are unspecified, then it will add the new cell at the bottom of
+            the notebook.
         """
         if not cell:
-            cell = CodeCell()
+            cell = CodeCell(source=source)
         # Default behavior: add cell to end of Notebook. Guard against a Notebook with no cells
         if not before_id and not after_id and self.cell_ids:
             after_id = self.cell_ids[-1]
         props = NBCellsAddProperties(cell=cell, before_id=before_id, after_id=after_id, id=cell.id)
         delta = NBCellsAdd(file_id=self.file_id, properties=props)
         await self.new_delta_request(delta)
+        # grab newly-squashed cell
+        _, cell = self.builder.get_cell(cell.id)
         return cell
 
-    async def delete_cell(self, cell_id: str) -> None:
+    async def delete_cell(self, cell_id: str) -> NBCellsDelete:
         delta = NBCellsDelete(file_id=self.file_id, properties={'id': cell_id})
-        await self.new_delta_request(delta)
+        return await self.new_delta_request(delta)
+
+    async def change_cell_type(
+        self,
+        cell_id: str,
+        cell_type: Literal['code', 'markdown', 'sql'],
+        code_language: str = 'python',
+        db_connection: str = '@noteable',
+        assign_results_to: Optional[str] = None,
+    ) -> NotebookCell:
+        """
+        Switch a cell between code, markdown, or SQL cell.
+         - code_language only relevant when switching to code cell
+         - db_connection and assign_results_to only relevant when switching to SQL cell
+        """
+        self.builder.get_cell(cell_id)  # Raise CellNotFound if it doesn't exist
+        if cell_type == 'code':
+            delta = CellMetadataReplace(
+                file_id=self.file_id,
+                resource_id=cell_id,
+                properties={'language': code_language, 'type': 'code'},
+            )
+            await self.new_delta_request(delta)
+        elif cell_type == 'markdown':
+            delta = CellMetadataReplace(
+                file_id=self.file_id,
+                resource_id=cell_id,
+                properties={'language': 'markdown', 'type': 'markdown'},
+            )
+            await self.new_delta_request(delta)
+        elif cell_type == 'sql':
+            delta = CellMetadataReplace(
+                file_id=self.file_id,
+                resource_id=cell_id,
+                properties={'language': 'sql', 'type': 'code'},
+            )
+            await self.new_delta_request(delta)
+
+            if not assign_results_to:
+                name_suffix = "".join(random.choices(string.ascii_lowercase, k=4))
+                assign_results_to = 'df_' + name_suffix
+            delta = CellMetadataUpdate(
+                file_id=self.file_id,
+                resource_id=cell_id,
+                properties={
+                    'path': ['metadata', 'noteable'],
+                    'value': {
+                        'cell_type': 'sql',
+                        'db_connection': db_connection,
+                        'assign_results_to': assign_results_to,
+                    },
+                },
+            )
+            await self.new_delta_request(delta)
+        else:
+            raise ValueError(f"Unknown cell type {cell_type}")
+        # Grab updated cell post-squashing
+        _, cell = self.builder.get_cell(cell_id)
+        return cell
 
     async def queue_execution(
         self,
