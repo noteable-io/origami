@@ -777,7 +777,7 @@ class RTUClient:
          - code_language only relevant when switching to code cell
          - db_connection and assign_results_to only relevant when switching to SQL cell
         """
-        _, cell = self.builder.get_cell(cell_id)  # Raise CellNotFound if it doesn't exist
+        self.builder.get_cell(cell_id)  # Raise CellNotFound if it doesn't exist
         if cell_type == 'code':
             delta = CellMetadataReplace(
                 file_id=self.file_id,
