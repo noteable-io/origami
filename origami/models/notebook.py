@@ -8,6 +8,8 @@ See https://nbformat.readthedocs.io/en/latest/format_description.html# for Noteb
 Devs: as usual with Pydantic modeling, the top-level model (Notebook) is at the bottom of this file,
 read from bottom up for most clarity.
 """
+import random
+import string
 import uuid
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -97,6 +99,34 @@ class CodeCell(CellBase):
         return self.metadata.get("noteable", {}).get("output_collection_id")
 
 
+def make_sql_cell(
+    cell_id: Optional[str] = None,
+    source: str = '',
+    db_connection: str = '@noteable',
+    assign_results_to: Optional[str] = None,
+) -> CodeCell:
+    cell_id = cell_id or str(uuid.uuid4())
+    # Remove first line of source if it starts with %%sql. That is the right syntax for regular
+    # code cells with sql magic support, but Noteable SQL cells should have just the sql source
+    if source.startswith('%%sql'):
+        lines = source.splitlines()
+        source = '\n'.join(lines[1:])
+
+    if not assign_results_to:
+        name_suffix = "".join(random.choices(string.ascii_lowercase, k=4))
+        assign_results_to = 'df_' + name_suffix
+    metadata = {
+        'language': 'sql',
+        'type': 'code',
+        'noteable': {
+            'cell_type': 'sql',
+            'db_connection': db_connection,
+            'assign_results_to': assign_results_to,
+        },
+    }
+    return CodeCell(cell_id=cell_id, source=source, metadata=metadata)
+
+
 class MarkdownCell(CellBase):
     cell_type: Literal["markdown"] = "markdown"
 
@@ -128,4 +158,5 @@ class Notebook(BaseModel):
 
     @property
     def language_version(self) -> Optional[str]:
+        return self.metadata.get("language_info", {}).get("version")
         return self.metadata.get("language_info", {}).get("version")
