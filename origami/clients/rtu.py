@@ -10,7 +10,7 @@ import random
 import string
 import traceback
 import uuid
-from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type, Union
+from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type
 
 import orjson
 from pydantic import BaseModel, parse_obj_as
@@ -828,30 +828,29 @@ class RTUClient:
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         run_all: bool = False,
-    ) -> Union[asyncio.Future[CodeCell], List[asyncio.Future[CodeCell]]]:
+    ) -> Dict[asyncio.Future[CodeCell], str]:
         """
-        Execute an individual cell or multiple cells in the Notebook. The return value is a single
-        Future or list of Futures that will resolve to the CodeCell executed when the cell has
-        finished running.
+        Execute an individual cell or multiple cells in the Notebook. The return value is a dict of
+        {future: cell_id}, even in the case of executing a single cell.
+
          - Only code Cells can be executed. When running multiple cells with before / after / all
            non-code cells will be excluded automatically
-         - Outputs should be available from the cell.output_collection_id property.
-        """
-        # Single cell flow, return a single Future
-        if cell_id:
-            idx, cell = self.builder.get_cell(cell_id)  # can raise CellNotFound
-            if cell.cell_type != 'code':
-                raise ValueError("Can only queue execute on code cells")
-            future = asyncio.Future()
-            self._execute_cell_events[cell_id] = future
-            delta = CellExecute(file_id=self.file_id, resource_id=cell_id)
-            await self.new_delta_request(delta)
-            return future
+         - Code cells with no source are not executed on Noteable backend, so they'll be skipped
+         - Outputs should be available from the cell.output_collection_id property
 
-        # Multiple cell flow
-        if not before_id and not after_id and not run_all:
+        Use:
+        queued_execute = await rtu_client.queue_execution(run_all=True)
+        done, pending = await asyncio.wait(*queued_execute, timeout=5)
+
+        still_running_cell_ids = [queued_execute[f] for f in pending]
+        """
+        if not cell_id and not before_id and not after_id and not run_all:
             raise ValueError("One of cell_id, before_id, after_id, or run_all must be set.")
-        if before_id:
+
+        if cell_id:
+            cell_ids = [cell_id]
+            delta = CellExecute(file_id=self.file_id, resource_id=cell_id)
+        elif before_id:
             idx, cell = self.builder.get_cell(before_id)  # can raise CellNotFound
             cell_ids = self.cell_ids[: idx + 1]  # inclusive of the "before_id" cell
             delta = CellExecuteBefore(file_id=self.file_id, resource_id=before_id)
@@ -862,13 +861,14 @@ class RTUClient:
         else:
             cell_ids = self.cell_ids[:]
             delta = CellExecuteAll(file_id=self.file_id)
-        futures = []
+        futures = {}
         for cell_id in cell_ids:
-            # Only create futures for Code cells
+            # Only create futures for Code cells that have something in source. Otherwise the cell
+            # will never get executed by PA/Kernel, so we'd never see cell status and resolve future
             future = asyncio.Future()
             idx, cell = self.builder.get_cell(cell_id)
-            if cell.cell_type == 'code':
+            if cell.cell_type == 'code' and cell.source.strip():
                 self._execute_cell_events[cell_id] = future
-                futures.append(future)
+                futures[future] = cell_id
         await self.new_delta_request(delta)
         return futures
