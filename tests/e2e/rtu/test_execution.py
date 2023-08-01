@@ -22,7 +22,8 @@ async def test_single_cell(api_client: APIClient, notebook_maker):
 
     queued_execution = await rtu_client.queue_execution('cell_1')
     # Assert cell_1 output collection has multiple outputs
-    cell: CodeCell = await queued_execution  # wait for cell_1 to be done
+    cell_1_fut = list(queued_execution)[0]
+    cell: CodeCell = await cell_1_fut  # wait for cell_1 to be done
     output_collection: KernelOutputCollection = await api_client.get_output_collection(
         cell.output_collection_id
     )
