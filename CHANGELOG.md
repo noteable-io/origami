@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+
+## [1.0.0-alpha.3] - 2023-08-01
 ### Added
 - `origami.models.notebook.make_sql_cell` convenience function, returns a `CodeCell` with appropriate metadata
 - `rtu_client.change_cell_type` to switch between code, markdown, and sql cells
