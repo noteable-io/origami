@@ -12,7 +12,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 - `rtu_client.change_cell_type` to switch between code, markdown, and sql cells
 
 ### Changed
- - `rtu_client.queue_execution` will always return a list of Futures, even on single cell execution. Also guards against executing empty code cells
+ - `rtu_client.queue_execution` will always return a dict of {Future: cell_id}, even on single cell execution. Also guards against executing empty code cells
 
 ## [1.0.0-alpha.2] - 2023-07-26
 ### Changed
