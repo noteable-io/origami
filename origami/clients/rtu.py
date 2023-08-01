@@ -828,15 +828,21 @@ class RTUClient:
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         run_all: bool = False,
-    ) -> List[asyncio.Future[CodeCell]]:
+    ) -> Dict[asyncio.Future[CodeCell], str]:
         """
-        Execute an individual cell or multiple cells in the Notebook. The return value is always
-        a list of Futures, even if only one cell is being executed.
+        Execute an individual cell or multiple cells in the Notebook. The return value is a dict of
+        {future: cell_id}, even in the case of executing a single cell.
 
          - Only code Cells can be executed. When running multiple cells with before / after / all
            non-code cells will be excluded automatically
          - Code cells with no source are not executed on Noteable backend, so they'll be skipped
-         - Outputs should be available from the cell.output_collection_id property.
+         - Outputs should be available from the cell.output_collection_id property
+
+        Use:
+        queued_execute = await rtu_client.queue_execution(run_all=True)
+        done, pending = await asyncio.wait(*queued_execute, timeout=5)
+
+        still_running_cell_ids = [queued_execute[f] for f in pending]
         """
         if not cell_id and not before_id and not after_id and not run_all:
             raise ValueError("One of cell_id, before_id, after_id, or run_all must be set.")
@@ -855,7 +861,7 @@ class RTUClient:
         else:
             cell_ids = self.cell_ids[:]
             delta = CellExecuteAll(file_id=self.file_id)
-        futures = []
+        futures = {}
         for cell_id in cell_ids:
             # Only create futures for Code cells that have something in source. Otherwise the cell
             # will never get executed by PA/Kernel, so we'd never see cell status and resolve future
@@ -863,6 +869,6 @@ class RTUClient:
             idx, cell = self.builder.get_cell(cell_id)
             if cell.cell_type == 'code' and cell.source.strip():
                 self._execute_cell_events[cell_id] = future
-                futures.append(future)
+                futures[future] = cell_id
         await self.new_delta_request(delta)
         return futures
