@@ -13,9 +13,6 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 ### Changed
 - Temporary guard against invalid `rtu_client_type` names when initiating `APIClient`
 
-### Changed
-- Temporary guard against invalid `rtu_client_type` names when initiating `APIClient`
-
 ## [1.0.0-alpha.3] - 2023-08-01
 ### Added
 - `origami.models.notebook.make_sql_cell` convenience function, returns a `CodeCell` with appropriate metadata
