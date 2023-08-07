@@ -835,12 +835,12 @@ class RTUClient:
         _, cell = self.builder.get_cell(cell_id)
         return cell
 
-    async def replace_cell_content(self, cell_id: str, content: str) -> NotebookCell:
+    async def replace_cell_content(self, cell_id: str, source: str) -> NotebookCell:
         """
         Replace cell content with a string
         """
         delta = CellContentsReplace(
-            file_id=self.file_id, resource_id=cell_id, properties={'content': content}
+            file_id=self.file_id, resource_id=cell_id, properties={'source': source}
         )
         await self.new_delta_request(delta)
         # Grab updated cell post-squashing
