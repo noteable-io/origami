@@ -17,7 +17,7 @@ from pydantic import BaseModel, parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
-from origami.models.deltas.delta_types.cell_contents import CellContentsUpdate
+from origami.models.deltas.delta_types.cell_contents import CellContentsReplace, CellContentsUpdate
 from origami.models.deltas.delta_types.cell_execute import (
     CellExecute,
     CellExecuteAfter,
@@ -829,6 +829,18 @@ class RTUClient:
         """
         delta = CellContentsUpdate(
             file_id=self.file_id, resource_id=cell_id, properties={'patch': patch}
+        )
+        await self.new_delta_request(delta)
+        # Grab updated cell post-squashing
+        _, cell = self.builder.get_cell(cell_id)
+        return cell
+
+    async def replace_cell_content(self, cell_id: str, content: str) -> NotebookCell:
+        """
+        Replace cell content with a string
+        """
+        delta = CellContentsReplace(
+            file_id=self.file_id, resource_id=cell_id, properties={'content': content}
         )
         await self.new_delta_request(delta)
         # Grab updated cell post-squashing
