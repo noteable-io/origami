@@ -43,7 +43,9 @@ class APIClient:
             transport=transport,
             timeout=timeout,
         )
-
+        # Hack until Gate changes out rtu_client_type from enum to str
+        if rtu_client_type not in ['origami', 'origamist', 'planar_ally', 'geas']:
+            rtu_client_type = 'unknown'
         self.rtu_client_type = rtu_client_type  # Only used when generating an RTUClient
 
     def add_tags_and_contextvars(self, **tags):
