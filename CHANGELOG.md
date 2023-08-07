@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+### Added
+- `rtu_client.update_cell_content` that takes cell id and a diff-match-patch patch str
+
+### Changed
+- Temporary guard against invalid `rtu_client_type` names when initiating `APIClient`
 
 ### Changed
 - Temporary guard against invalid `rtu_client_type` names when initiating `APIClient`

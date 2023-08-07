@@ -17,6 +17,7 @@ from pydantic import BaseModel, parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
+from origami.models.deltas.delta_types.cell_contents import CellContentsUpdate
 from origami.models.deltas.delta_types.cell_execute import (
     CellExecute,
     CellExecuteAfter,
@@ -818,6 +819,18 @@ class RTUClient:
             await self.new_delta_request(delta)
         else:
             raise ValueError(f"Unknown cell type {cell_type}")
+        # Grab updated cell post-squashing
+        _, cell = self.builder.get_cell(cell_id)
+        return cell
+
+    async def update_cell_content(self, cell_id: str, patch: str) -> NotebookCell:
+        """
+        Update cell content with a diff-match-patch patch string
+        """
+        delta = CellContentsUpdate(
+            file_id=self.file_id, resource_id=cell_id, properties={'patch': patch}
+        )
+        await self.new_delta_request(delta)
         # Grab updated cell post-squashing
         _, cell = self.builder.get_cell(cell_id)
         return cell
