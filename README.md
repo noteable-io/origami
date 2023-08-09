@@ -107,13 +107,16 @@ from origami.models.notebook import CodeCell
 cell = CodeCell(source="print('Hello World')")
 await realtime_notebook.add_cell(cell)
 
-# Execute the cell
+# Execute the cell. The returned value is a dictionary of Futures. Awaiting those futures will
+# block until the cells have completed execution
 queued_execution = await realtime_notebook.queue_execution(cell.id)
 
-# Wait for the execution to be complete, cell is an updated instance of CodeCell with metadata/outputs
-cell = await queued_execution
+# The return value of the Futures is the up-to-date cell. If there's output, an output collection id
+# will be set on the cell metadata
+cells = await asyncio.gather(*queued_execution)
 
 # Grab the output
+cell = cells[0]
 output_collection = await api_client.get_output_collection(cell.output_collection_id)
 print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 ```
