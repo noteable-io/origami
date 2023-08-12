@@ -80,8 +80,8 @@ The Noteable API requires an authentication token. You can manage tokens at the 
 The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code.
 
 ```python
-# Grab a project_id from the Noteable UI, the url will look like: app.noteable.io/p/....
-api_token = '...'
+# Get your API token from the User Settings page by clicking your account name in the upper right
+api_token = os.environ['NOTEABLE_TOKEN']
 
 # Client for interacting with Noteables REST API
 from origami.clients.api import APIClient
