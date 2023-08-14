@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, ValidationError, root_validator
 
 from origami.models.deltas.discriminators import FileDelta
 from origami.models.kernels import CellState, KernelStatusUpdate
-from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
+from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse, BooleanReplyData
 
 
 class FilesRequest(BaseRTURequest):
@@ -78,13 +78,9 @@ class FileUnsubscribeRequest(FilesRequest):
     event: Literal['unsubscribe_request'] = 'unsubscribe_request'
 
 
-class FileUnsubscribeReplyData(BaseModel):
-    success: bool
-
-
 class FileUnsubscribeReply(FilesResponse):
     event: Literal['unsubscribe_reply'] = 'unsubscribe_reply'
-    data: FileUnsubscribeReplyData
+    data: BooleanReplyData
 
 
 # Deltas are requests to change a document content or perform cell execution. The API server ensures
@@ -101,13 +97,9 @@ class NewDeltaRequest(FilesRequest):
     data: NewDeltaRequestData
 
 
-class NewDeltaReplyData(BaseModel):
-    success: bool
-
-
 class NewDeltaReply(FilesResponse):
     event: Literal['new_delta_reply'] = 'new_delta_reply'
-    data: NewDeltaReplyData
+    data: BooleanReplyData
 
 
 class NewDeltaEvent(FilesResponse):
@@ -138,13 +130,9 @@ class UpdateUserCellSelectionRequest(FilesRequest):
     data: UpdateUserCellSelectionRequestData
 
 
-class UpdateUserCellSelectionReplyData(BaseModel):
-    success: bool
-
-
 class UpdateUserCellSelectionReply(FilesResponse):
     event: Literal['update_user_cell_selection_reply'] = 'update_user_cell_selection_reply'
-    data: UpdateUserCellSelectionReplyData
+    data: BooleanReplyData
 
 
 class UpdateUserFileSubscriptionEventData(BaseModel):
@@ -197,13 +185,9 @@ class TransformViewToCodeRequest(FilesRequest):
     data: TransformViewToCodeRequestData
 
 
-class TransformViewToCodeReplyData(BaseModel):
-    success: bool
-
-
 class TransformViewToCodeReply(FilesResponse):
     event: Literal['transform_view_to_code_reply'] = 'transform_view_to_code_reply'
-    data: TransformViewToCodeReplyData
+    data: BooleanReplyData
 
 
 # When the API squashes Deltas, it will emit a new file versions changed event
