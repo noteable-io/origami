@@ -9,7 +9,7 @@ from typing import Annotated, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 from origami.models.kernels import CellState, KernelStatusUpdate
-from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
+from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse, BooleanReplyData
 
 
 class KernelsRequest(BaseRTURequest):
@@ -66,8 +66,56 @@ class VariableExplorerResponse(KernelsResponse):
     event: Literal['variable_explorer_event'] = 'variable_explorer_event'
 
 
+class IntegratedAIRequestData(BaseModel):
+    prompt: str
+    # this may not be called on a specific cell, but at a specific point in time at a generic
+    # "document" level, so we don't require a cell_id
+    cell_id: Optional[str]
+    # if a cell_id is provided and this is True, the result will be added to the cell's output
+    # instead of just sent back as an RTU reply
+    output_for_response: bool = False
+
+
+class IntegratedAIRequest(KernelsRequest):
+    event: Literal['integrated_ai_request'] = 'integrated_ai_request'
+    data: IntegratedAIRequestData
+
+
+class IntegratedAIReply(KernelsResponse):
+    event: Literal['integrated_ai_reply'] = 'integrated_ai_reply'
+    data: BooleanReplyData
+
+
+class IntegratedAIResultData(BaseModel):
+    # the full response from OpenAI; in most casts, sidecar will have either created a new cell
+    # or an output, so this result should really only be used when the RTU client needs it to exist
+    # outside of the cell/output structure
+    result: str
+
+
+# this is sidecar to gate as a result of calling the OpenAIHandler method (OpenAI response,
+# error, etc); after that, Gate propogates the data out as an IntegratedAIEvent
+class IntegratedAIResult(KernelsRequest):
+    event: Literal['integrated_ai_result'] = 'integrated_ai_result'
+    data: IntegratedAIResultData
+
+
+class IntegratedAIResultReply(KernelsResponse):
+    data: BooleanReplyData
+
+
+class IntegratedAIEvent(KernelsResponse):
+    event: Literal['integrated_ai_event'] = 'integrated_ai_event'
+    data: IntegratedAIResultData
+
+
 KernelRequests = Annotated[
-    Union[KernelSubscribeRequest, VariableExplorerUpdateRequest], Field(discriminator="event")
+    Union[
+        KernelSubscribeRequest,
+        VariableExplorerUpdateRequest,
+        IntegratedAIRequest,
+    ],
+    Field(discriminator="event"),
 ]
 
 KernelResponses = Annotated[
@@ -76,6 +124,7 @@ KernelResponses = Annotated[
         KernelStatusUpdateResponse,
         BulkCellStateUpdateResponse,
         VariableExplorerResponse,
+        IntegratedAIReply,
     ],
     Field(discriminator="event"),
 ]
