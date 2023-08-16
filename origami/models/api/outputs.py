@@ -18,6 +18,7 @@ class KernelOutput(ResourceBase):
     available_mimetypes: List[str]
     content_metadata: KernelOutputContent
     content: Optional[KernelOutputContent]
+    content_for_llm: Optional[KernelOutputContent]
     parent_collection_id: uuid.UUID
 
 
