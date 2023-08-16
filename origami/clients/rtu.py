@@ -319,7 +319,7 @@ class RTUClient:
     @property
     def kernel_pod_name(self) -> str:
         """Transform the file_id into the Pod name used to build the kernels/ RTU channel"""
-        return f'kernels/notebook-kernel-{self.file_id.hex[:15]}'
+        return f'kernels/notebook-kernel-{self.file_id.hex[:20]}'
 
     def send(self, msg: RTURequest):
         """
