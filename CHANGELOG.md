@@ -10,6 +10,13 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 ### Added
 - `integrated_ai*` message models for the `kernels` channel
 
+### [1.0.0-alpha.5] - 2023-08-16
+### Added
+- Optional output-for-LLM field in KernelOutput model
+
+### Fixed
+- Create `RTUClient.kernel_pod_name` with the right suffix
+
 ### [1.0.0-alpha.4] - 2023-08-08
 ### Added
 - `rtu_client.update_cell_content` that takes cell id and a diff-match-patch patch str
