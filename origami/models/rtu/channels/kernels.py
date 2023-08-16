@@ -86,6 +86,11 @@ class IntegratedAIReply(KernelsResponse):
     data: BooleanReplyData
 
 
+class IntegratedAIEvent(IntegratedAIRequest):
+    event: Literal['integrated_ai_event'] = 'integrated_ai_event'
+    data: IntegratedAIRequestData
+
+
 class IntegratedAIResultData(BaseModel):
     # the full response from OpenAI; in most casts, sidecar will have either created a new cell
     # or an output, so this result should really only be used when the RTU client needs it to exist
@@ -104,8 +109,8 @@ class IntegratedAIResultReply(KernelsResponse):
     data: BooleanReplyData
 
 
-class IntegratedAIEvent(KernelsResponse):
-    event: Literal['integrated_ai_event'] = 'integrated_ai_event'
+class IntegratedAIResultEvent(KernelsResponse):
+    event: Literal['integrated_ai_result_event'] = 'integrated_ai_result_event'
     data: IntegratedAIResultData
 
 
@@ -125,6 +130,8 @@ KernelResponses = Annotated[
         BulkCellStateUpdateResponse,
         VariableExplorerResponse,
         IntegratedAIReply,
+        IntegratedAIEvent,
+        IntegratedAIResultEvent,
     ],
     Field(discriminator="event"),
 ]
