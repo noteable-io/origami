@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+### Added
+- `integrated_ai*` message models for the `kernels` channel
 
 ### [1.0.0-alpha.4] - 2023-08-08
 ### Added

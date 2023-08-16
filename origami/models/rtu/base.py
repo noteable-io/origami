@@ -5,6 +5,11 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, root_validator
 
 
+class BooleanReplyData(BaseModel):
+    # Gate will reply to most RTU requests with an RTU reply that's just success=True/False
+    success: bool
+
+
 class BaseRTURequest(BaseModel):
     transaction_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     channel: str
