@@ -125,7 +125,7 @@ print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 
 ## 1.0 Roadmap
 
-Origami is heading towards a 1.0 release. The alpha release candidate is on Pypi now, installable with a `--pre` flag. The 1.0 release represents a major refactor of the Origami using the best practices and lessons learned from creating multiple production API and RTU clients, including our ChatGPT plugin. It will likely come out of alpha once all of our internal applications are using the Origami 1.0 syntax.
+Origami 1.0 implies that we have a stable architecture such as a split of `APIClient` and `RTUClient` and the layout of the RTU modeling. Some syntax may change as Origami is integrated into production components. Any breaking changes will be a minor version bump.
 
 ## Contributing
 
