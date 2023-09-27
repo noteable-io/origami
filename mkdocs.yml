@@ -29,7 +29,7 @@ nav:
   - Introduction: "index.md"
   - Contributing: "contributing.md"
   - "Quick Start": "quickstart.md"
-  - Usage: "usage.md"
+  - "Use Cases": "usage.md"
   - Code Reference: reference/
   - Changes:
       - Log: "changelog.md"

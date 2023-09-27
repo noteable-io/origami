@@ -1,5 +1,5 @@
 # Quick Start
-The example below will guide you through the basics of creating a notebook, adding content, executing code, and seeing the output. For more examples, see our [Use Cases]() section.
+The example below will guide you through the basics of creating a notebook, adding content, executing code, and seeing the output. For more examples, see our [Use Cases](../usage.md) section.
 
 !!! info "Developer note: For pre-1.0 release information, see the [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)"
 

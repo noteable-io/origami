@@ -105,7 +105,7 @@ user
 ```
 ``` {.python .no-copy }
 User(
-    id=UUID('abc12345-abc1-23ab-1234-abc123abcdef'),
+    id=UUID('f1a2b3c4-5678-4d90-ef01-23456789abcd'),
     created_at=datetime.datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
     updated_at=datetime.datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
     deleted_at=None,
@@ -113,7 +113,7 @@ User(
     email='origami@noteable.io',
     first_name='Ori',
     last_name='Gami',
-    origamist_default_project_id=UUID('xyz98765-xyz9-87xy-9876-xyz987abcdef'),
+    origamist_default_project_id=UUID('a1b2c3d4-e5f6-4a7b-8123-abcdef123456'),
     principal_sub='pat:0a1b2c3d4e5f6g7h8i9j10k11l',
     auth_type='pat:0a1b2c3d4e5f6g7h8i9j10k11l'
 )
@@ -139,14 +139,14 @@ file
 ```
 ``` {.python .no-copy }
 File(
-    id=UUID('abc12312-3412-4abc-8123-abc12312abc1'),
+    id=UUID('bcd12345-6789-4abc-d012-3456abcdef90'),
     created_at=datetime.datetime(2023, 2, 2, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
     updated_at=datetime.datetime(2023, 2, 2, 0, 0, 0, 0, tzinfo=datetime.timezone.utc),
     deleted_at=None,
     filename='Origami Demo.ipynb',
     path=PosixPath('Origami Demo.ipynb'),
-    project_id=UUID('xyz98765-xyz9-87xy-9876-xyz987abcdef'),
-    space_id=UUID('z789xyz7-8978-4xyz-8967-xyz78978xyz7'),
+    project_id=UUID('a1b2c3d4-e5f6-4a7b-8123-abcdef123456'),
+    space_id=UUID('7890ab12-3412-4cde-8901-2345abcdef67'),
     size=0,
     mimetype=None,
     type='notebook',
@@ -170,7 +170,7 @@ kernel_session
 ```
 ```{.python .no-copy}
 KernelSession(
-    id=UUID('23abc123-12ab-c123-4abc-123abc1234ab'),
+    id=UUID('e1f2a345-6789-4b01-cdef-1234567890ab'),
     kernel=KernelDetails(
         name='python3',
         last_activity=datetime.datetime(2023, 2, 2, 1, 0, 0, 0, tzinfo=datetime.timezone.utc),
@@ -192,7 +192,7 @@ realtime_notebook = await api_client.connect_realtime(file)
 > You may see messages like `Received un-modeled RTU message msg.channel= ...`. This is expected as we update the Noteable backend services' messaging.
 
 <!-- --8<-- [start:add-cells] -->
-Once our RTU client is connected, we can begin adding cells, executing code, and more! First, let's add a code cell with a basic Python `print` statement.
+Once the RTU client is connected, we can begin adding cells, executing code, and more! First, let's add a code cell with a basic Python `print` statement.
 ```python
 from origami.models.notebook import CodeCell
 
@@ -216,13 +216,13 @@ cell
 ```
 ```{.python .no-copy}
 CodeCell(
-    id='c123abc1-2312-4abc-8123-abc12312abc1',
+    id='2345ab6c-de78-4901-bcde-f1234567890a',
     source="print('Hello World')",
     metadata={
-        'noteable': {'output_collection_id': UUID('89xyz789-78xy-z789-4xyz-789xyz7894xy')},
+        'noteable': {'output_collection_id': UUID('d1234e5f-6789-4a0b-c123-4567890abcdef')},
         'ExecuteTime': {
-            'start_time': '2023-02-02T00:00:00.000000+00:00',
-            'end_time': '2023-02-02T00:00:00.050000+00:00'
+            'start_time': '2023-02-02T01:00:00.000000+00:00',
+            'end_time': '2023-02-02T01:00:00.050000+00:00'
         }
     },
     cell_type='code',
@@ -241,18 +241,18 @@ output_collection
 ```
 ```{.python .no-copy}
 KernelOutputCollection(
-    id=UUID('abc12378-9abc-4123-bc78-9xyz789a1bc2'),
+    id=UUID('d1234e5f-6789-4a0b-c123-4567890abcdef'),
     created_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
     updated_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
     deleted_at=None,
-    cell_id='d54e7c90-760e-4779-a2e7-01cecd31ecfb',
+    cell_id='2345ab6c-de78-4901-bcde-f1234567890a',
     widget_model_id=None,
-    file_id=UUID('5da367cc-a6b6-45f8-9322-9c90abca8b07'),
+    file_id=UUID('bcd12345-6789-4abc-d012-3456abcdef90'),
     outputs=[
         KernelOutput(
             id=UUID('xyz789ab-c123-4789-yz12-3abc123x7yz8'),
-            created_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
-            updated_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
+            created_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
+            updated_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
             deleted_at=None,
             type='stream',
             display_id=None,
@@ -260,7 +260,7 @@ KernelOutputCollection(
             content_metadata=KernelOutputContent(raw='{"name":"stdout"}', url=None, mimetype='application/json'),
             content=KernelOutputContent(raw='Hello World\n', url=None, mimetype='text/plain'),
             content_for_llm=KernelOutputContent(raw='Hello World\n', url=None, mimetype='text/plain'),
-            parent_collection_id=UUID('dbdced38-c896-4648-9aeb-ef1f461ba890')
+            parent_collection_id=UUID('d1234e5f-6789-4a0b-c123-4567890abcdef')
         )
     ]
 )
