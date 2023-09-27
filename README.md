@@ -250,7 +250,7 @@ KernelOutputCollection(
     file_id=UUID('bcd12345-6789-4abc-d012-3456abcdef90'),
     outputs=[
         KernelOutput(
-            id=UUID('xyz789ab-c123-4789-yz12-3abc123x7yz8'),
+            id=UUID('abcdef90-1234-4a56-7890-abcdef123456'),
             created_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
             updated_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
             deleted_at=None,
