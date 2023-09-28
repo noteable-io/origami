@@ -91,8 +91,9 @@ Using the API token you created previously, load it into your notebook environme
 import os
 from origami.clients.api import APIClient
 
-api_token = os.environ['NOTEABLE_TOKEN']
-api_client = APIClient(api_token)
+# if we have the `NOTEABLE_TOKEN` environment variable set,
+# we don't need to pass it in to the APIClient directly
+api_client = APIClient()
 ```
 *The `APIClient` is what we'll use to make HTTP requests to Noteable's REST API.*
 <!-- --8<-- [end:api-client] -->
