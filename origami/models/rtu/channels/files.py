@@ -198,7 +198,8 @@ class TransformViewToCodeReply(FilesResponse):
     data: BooleanReplyData
 
 
-# Widgets, ugh. Not attempting to model their
+# Widgets, ugh. Not attempting to model the payload, no current plan on doing anything with them
+# on the Origami side.
 class V0CreateWidgetModelEvent(FilesResponse):
     event: Literal['v0_create_widget_model_event'] = 'v0_create_widget_model_event'
     data: Any
