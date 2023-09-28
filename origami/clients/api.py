@@ -8,7 +8,7 @@ import pydantic
 
 from origami.clients.rtu import RTUClient
 from origami.models.api.datasources import DataSource
-from origami.models.api.files import File
+from origami.models.api.files import File, FileVersion
 from origami.models.api.outputs import KernelOutputCollection
 from origami.models.api.projects import Project
 from origami.models.api.spaces import Space
@@ -236,6 +236,18 @@ class APIClient:
             resp = await plain_http_client.get(presigned_download_url)
             resp.raise_for_status()
         return resp.content
+
+    async def get_file_versions(self, file_id: uuid.UUID) -> List[FileVersion]:
+        """
+        List all versions of a File. The response includes presigned urls to download the content
+        of any previous version. Note when working with older versions, you do not want to establish
+        an RTUClient to "catch up" past that version.
+        """
+        endpoint = f'/files/{file_id}/versions'
+        resp = await self.client.get(endpoint)
+        resp.raise_for_status()
+        versions = [FileVersion.parse_obj(version) for version in resp.json()]
+        return versions
 
     async def delete_file(self, file_id: uuid.UUID) -> File:
         self.add_tags_and_contextvars(file_id=str(file_id))
