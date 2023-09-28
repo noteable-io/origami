@@ -127,6 +127,19 @@ print(output_collection.outputs[0].content.raw) # 'Hello World\n'
 
 Origami 1.0 implies that we have a stable architecture such as a split of `APIClient` and `RTUClient` and the layout of the RTU modeling. Some syntax may change as Origami is integrated into production components. Any breaking changes will be a minor version bump.
 
+## CLI
+
+Origami has a small CLI for fetching the content of a Notebook, and tailing a Notebook to see all RTU messages being emitted on the relevant RTU channels.
+
+```
+pip install noteable-origami[cli]
+poetry install -E cli
+```
+
+1. Fetch the content of a Notebook and write to file: `origami fetch <file-id> > notebook.ipynb`
+2. Tail a Notebook, useful when debugging RTU messages: `origami tail <file-id>`
+
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
