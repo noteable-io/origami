@@ -136,7 +136,7 @@ pip install noteable-origami[cli]
 poetry install -E cli
 ```
 
-1. Fetch the content of a Notebook and write to file: `origami fetch <file-id> notebook.ipynb`
+1. Fetch the content of a Notebook and write to file: `origami fetch <file-id> > notebook.ipynb`
 2. Tail a Notebook, useful when debugging RTU messages: `origami tail <file-id>`
 
 
