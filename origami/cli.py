@@ -23,7 +23,7 @@ async def _get_notebook(file_id: str, api_url: str = "https://app.noteable.io/ga
 
 
 @app.command()
-def get(file_id: str, api_url: str = "https://app.noteable.io/gate/api"):
+def fetch(file_id: str, api_url: str = "https://app.noteable.io/gate/api"):
     asyncio.run(_get_notebook(file_id, api_url))
 
 
