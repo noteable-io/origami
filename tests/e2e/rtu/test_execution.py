@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from origami.clients.api import APIClient
 from origami.clients.rtu import RTUClient
 from origami.models.api.files import File
@@ -66,3 +68,16 @@ async def test_run_all(api_client: APIClient, notebook_maker):
     finally:
         await rtu_client.shutdown()
         await api_client.shutdown_kernel(kernel_session.id)
+
+
+async def test_execution_request_err_if_no_kernel_started(api_client: APIClient, notebook_maker):
+    notebook = Notebook(cells=[CodeCell(id='cell_1', source='2 + 2')])
+    file: File = await notebook_maker(notebook=notebook)
+    # TODO: remove sleep when Gate stops permission denied on newly created files (db time-travel)
+    await asyncio.sleep(2)
+
+    rtu_client: RTUClient = await api_client.connect_realtime(file)
+    assert rtu_client.builder.nb.cells == notebook.cells
+
+    with pytest.raises(RuntimeError):
+        await rtu_client.queue_execution('cell_1')
