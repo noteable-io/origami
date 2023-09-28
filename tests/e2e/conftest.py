@@ -107,19 +107,19 @@ def api_base_url():
 @pytest.fixture
 def test_space_id() -> uuid.UUID:
     # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('edc21f3f-fb30-45fb-a30d-668fac0b0e4a')
+    return uuid.UUID('1ecc737e-0252-49a1-af9b-a0a400db5888')
 
 
 @pytest.fixture
 def test_project_id() -> uuid.UUID:
     # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('c34e6a11-cc60-4ab6-9566-10f81a4a46cd')
+    return uuid.UUID('a752faf4-bbc7-4fe1-9c5f-be92394e48a2')
 
 
 @pytest.fixture
 def test_user_id() -> uuid.UUID:
     # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('f9dfb1b5-7ae4-477c-818f-08d0732018d3')
+    return uuid.UUID('9eb39719-4fc1-44de-9155-3edaeb32ce2c')
 
 
 class LogWarningTransport(httpx.AsyncHTTPTransport):

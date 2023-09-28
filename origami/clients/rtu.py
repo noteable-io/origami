@@ -685,7 +685,7 @@ class RTUClient:
     async def on_kernel_status_update(self, msg: KernelStatusUpdateResponse):
         """Called when we receive a kernel_status_update_event on kernels/ channel"""
         self.kernel_state = msg.data.kernel.execution_state
-        logger.info(f"updating Kernel state to: {self.kernel_state}")
+        logger.debug(f"updating Kernel state to: {self.kernel_state}")
 
     async def on_bulk_cell_state_update(self, msg: BulkCellStateUpdateResponse):
         """Called when we receive a bulk_cell_state_update_event on kernels/ channel"""
@@ -695,7 +695,7 @@ class RTUClient:
                 # When we see that a cell we're monitoring has finished, resolve the Future to
                 # be the cell
                 if item.state in ['finished_with_error', 'finished_with_no_error']:
-                    logger.info(
+                    logger.debug(
                         "Cell execution for monitored cell finished",
                         extra={
                             'cell_id': item.cell_id,
@@ -722,10 +722,10 @@ class RTUClient:
 
     async def wait_for_kernel_idle(self):
         """Wait for the kernel to be idle"""
-        logger.info("Waiting for Kernel to be idle")
+        logger.debug("Waiting for Kernel to be idle")
         while self.kernel_state != 'idle':
             await asyncio.sleep(0.05)
-        logger.info("Kernel is idle")
+        logger.debug("Kernel is idle")
 
     async def new_delta_request(self, delta=FileDelta) -> FileDelta:
         """
