@@ -14,7 +14,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 - Modeling for RTU messages that were missing
   - `variable_explorer_request` on Kernels channel
   - `append_output_event` on Files channel
-  - `v0_create_widget_mdoel_event` on Files channel
+  - `v0_create_widget_model_event` on Files channel
 - Configuration options for `APIClient` and e2e tests from env variables. Use `NOTEABLE_TOKEN` and `NOTEABLE_API_URL` with `APIClient`
 - `APIClient.get_file_versions` to list all versions of a file, including version id, version number, and presigned url to download content for that version
 - Updated docs for Origami 1.x syntax
