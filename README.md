@@ -242,8 +242,8 @@ output_collection
 ```{.python .no-copy}
 KernelOutputCollection(
     id=UUID('d1234e5f-6789-4a0b-c123-4567890abcdef'),
-    created_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
-    updated_at=datetime.datetime(2023, 2, 2, 0, 0, 1, 000000, tzinfo=datetime.timezone.utc),
+    created_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
+    updated_at=datetime.datetime(2023, 2, 2, 1, 0, 1, 000000, tzinfo=datetime.timezone.utc),
     deleted_at=None,
     cell_id='2345ab6c-de78-4901-bcde-f1234567890a',
     widget_model_id=None,
