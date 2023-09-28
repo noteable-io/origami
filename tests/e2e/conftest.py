@@ -90,36 +90,20 @@ def setup_logging():
     )
 
 
-@pytest.fixture
-def jwt():
-    token = os.environ.get('NOTEABLE_TOKEN')
-    if not token:
-        raise RuntimeError('NOTEABLE_TOKEN environment variable not set')
-    return token
-
-
-@pytest.fixture
-def api_base_url():
-    # TODO: use env var or otherwise make configurable for CI
-    return 'http://localhost:8001/api'
-
-
+# hardcoded values below are just what @kafonek was using in local skaffold
 @pytest.fixture
 def test_space_id() -> uuid.UUID:
-    # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('1ecc737e-0252-49a1-af9b-a0a400db5888')
+    return uuid.UUID(os.environ.get('TEST_SPACE_ID', '1ecc737e-0252-49a1-af9b-a0a400db5888'))
 
 
 @pytest.fixture
 def test_project_id() -> uuid.UUID:
-    # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('a752faf4-bbc7-4fe1-9c5f-be92394e48a2')
+    return uuid.UUID(os.environ.get('TEST_PROJECT_ID', 'a752faf4-bbc7-4fe1-9c5f-be92394e48a2'))
 
 
 @pytest.fixture
 def test_user_id() -> uuid.UUID:
-    # TODO: use env var or otherwise make configurable for CI
-    return uuid.UUID('9eb39719-4fc1-44de-9155-3edaeb32ce2c')
+    return uuid.UUID(os.environ.get('TEST_USER_ID', '9eb39719-4fc1-44de-9155-3edaeb32ce2c'))
 
 
 class LogWarningTransport(httpx.AsyncHTTPTransport):
@@ -136,12 +120,10 @@ class LogWarningTransport(httpx.AsyncHTTPTransport):
 
 
 @pytest.fixture
-def api_client(api_base_url, jwt) -> APIClient:
-    return APIClient(
-        authorization_token=jwt,
-        api_base_url=api_base_url,
-        transport=LogWarningTransport(),
-    )
+def api_client() -> APIClient:
+    if "NOTEABLE_API_URL" in os.environ:
+        logger.warning("Using default (prod) Noteable API, did you mean to set NOTEABLE_API_URL?")
+    return APIClient(transport=LogWarningTransport())
 
 
 @pytest.fixture
