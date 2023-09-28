@@ -12,9 +12,9 @@ for path in sorted(Path("origami").rglob("*.py")):
     full_doc_path = Path("reference", doc_path)
     parts = list(module_path.parts)
 
-    if parts[-1].startswith("_"): 
+    if parts[-1].startswith("_"):
         continue
-    
+
     nav[parts] = doc_path.as_posix()
 
     with mkdocs_gen_files.open(full_doc_path, "w") as fd:
@@ -26,5 +26,5 @@ for path in sorted(Path("origami").rglob("*.py")):
 # nav["mkdocs_autorefs", "references"] = "autorefs/references.md"
 # nav["mkdocs_autorefs", "plugin"] = "autorefs/plugin.md"
 
-with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:  # 
+with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
