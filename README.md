@@ -63,7 +63,7 @@ pip install noteable-origami --pre
 
 ## Getting Started
 
-> **Info**
+> **Note**
 > Developer note: For pre-1.0 release information, see the [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)
 
 ### API Tokens
