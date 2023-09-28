@@ -8,6 +8,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ## [Unreleased]
 
+### [1.1.0] - 2023-09-28
 ### Added
 - CLI for downloading Notebooks and tailing a Notebook to see all RTU messages
 - Modeling for RTU messages that were missing
