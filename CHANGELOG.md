@@ -14,6 +14,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
   - `variable_explorer_request` on Kernels channel
   - `append_output_event` on Files channel
   - `v0_create_widget_mdoel_event` on Files channel
+- Configuration options for `APIClient` and e2e tests from env variables. Use `NOTEABLE_TOKEN` and `NOTEABLE_API_URL` with `APIClient`
 
 ### [1.0.0] - 2023-09-08
 

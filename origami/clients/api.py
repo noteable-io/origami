@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class APIClient:
     def __init__(
         self,
-        authorization_token: str,
+        authorization_token: Optional[str] = None,
         api_base_url: str = "https://app.noteable.io/gate/api",
         headers: Optional[dict] = None,
         transport: Optional[httpx.AsyncHTTPTransport] = None,
@@ -31,7 +31,11 @@ class APIClient:
         rtu_client_type: str = 'origami',
     ):
         # jwt and api_base_url saved as attributes because they're re-used when creating rtu client
-        self.jwt = authorization_token
+        self.jwt = authorization_token or os.environ.get('NOTEABLE_TOKEN')
+        if not self.jwt:
+            raise ValueError(
+                'Must provide authorization_token or set NOTEABLE_TOKEN environment variable'
+            )
         self.api_base_url = os.environ.get('NOTEABLE_API_URL', api_base_url)
         self.headers = {"Authorization": f"Bearer {self.jwt}"}
         if headers:
