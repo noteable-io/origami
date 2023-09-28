@@ -16,6 +16,10 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
   - `v0_create_widget_mdoel_event` on Files channel
 - Configuration options for `APIClient` and e2e tests from env variables. Use `NOTEABLE_TOKEN` and `NOTEABLE_API_URL` with `APIClient`
 
+### Changed
+- Raise a Runtime Error if trying to send a cell execute request when no Kernel is running
+  - This is technically handled fine within Noteable and the execute is queued until Kernel starts, but is an easy foot-gun for end users
+
 ### [1.0.0] - 2023-09-08
 
 ### [1.0.0-alpha.5] - 2023-08-16
