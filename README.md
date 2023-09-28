@@ -81,7 +81,7 @@ The token can be passed directly in to `APIClient` on initialization, or set it 
 ### Usage
 <!-- --8<-- [end:api-tokens] -->
 
-The example below will guide you through the basics of creating a notebook, adding content, executing code, and seeing the output. For more examples, see our [Use Cases]() section.
+The example below will guide you through the basics of creating a notebook, adding content, executing code, and seeing the output. For more examples, see our [Use Cases](../usage) section.
 
 ### Setting up the `APIClient`
 <!-- --8<-- [start:api-client] -->
@@ -123,7 +123,7 @@ User(
 
 ### Creating a new Notebook
 
-> **Info**
+> **Note**
 > For this example, we're using the `origamist_default_project_id`, which is the default project designed to be used by the ChatGPT plugin. Feel free to replace it with projects you have access to in [Noteable](https://app.noteable.io/)!
 
 <!-- --8<-- [start:create-notebook] -->
