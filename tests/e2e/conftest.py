@@ -121,7 +121,7 @@ class LogWarningTransport(httpx.AsyncHTTPTransport):
 
 @pytest.fixture
 def api_client() -> APIClient:
-    if "NOTEABLE_API_URL" in os.environ:
+    if "NOTEABLE_API_URL" not in os.environ:
         logger.warning("Using default (prod) Noteable API, did you mean to set NOTEABLE_API_URL?")
     return APIClient(transport=LogWarningTransport())
 
