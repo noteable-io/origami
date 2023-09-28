@@ -4,16 +4,19 @@ site_description: A Python SDK for Noteable API interactions.
 
 theme:
   name: "material"
-  logo: papersnake.svg
+  logo: papersnake-dark.svg
   palette:
     - scheme: "default"
       media: "(prefers-color-scheme: light)"
+      primary: "cyan"
+      accent: "cyan"
       toggle:
         icon: "material/lightbulb"
         name: "Switch to dark mode"
     - scheme: "slate"
       media: "(prefers-color-scheme: dark)"
-      primary: "blue"
+      primary: "cyan"
+      accent: "cyan"
       toggle:
         icon: "material/lightbulb-outline"
         name: "Switch to light mode"
