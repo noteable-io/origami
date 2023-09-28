@@ -26,3 +26,14 @@ class File(ResourceBase):
     def construct_url(cls, v, values):
         noteable_url = os.environ.get('PUBLIC_NOTEABLE_URL', 'https://app.noteable.io')
         return f"{noteable_url}/f/{values['id']}/{values['path']}"
+
+
+class FileVersion(ResourceBase):
+    created_by_id: Optional[uuid.UUID] = None
+    number: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    file_id: uuid.UUID
+    project_id: uuid.UUID
+    space_id: uuid.UUID
+    content_presigned_url: str
