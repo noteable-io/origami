@@ -1,12 +1,8 @@
 name: Publish docs
 
 on:  # yamllint disable-line rule:truthy
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  release:
+    types: [published]
 
 permissions:
   contents: write
