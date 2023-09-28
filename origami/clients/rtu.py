@@ -871,6 +871,10 @@ class RTUClient:
         """
         if not cell_id and not before_id and not after_id and not run_all:
             raise ValueError("One of cell_id, before_id, after_id, or run_all must be set.")
+        if self.kernel_state == "not_started":
+            raise RuntimeError(
+                "Cannot submit cell execution requests for Notebook that has not started a Kernel. Use api_client.launch_kernel to start one."  # noqa: E501
+            )
 
         if cell_id:
             cell_ids = [cell_id]
