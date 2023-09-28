@@ -197,7 +197,7 @@ class NotebookBuilder:
     def update_cell_metadata(self, delta: CellMetadataUpdate):
         """Update cell metadata using a partial update / nested path technique"""
         if delta.resource_id in self.deleted_cell_ids:
-            logger.info(
+            logger.debug(
                 f"Skipping update_cell_metadata for deleted cell {delta.resource_id}",
                 extra={'delta_properties_path': delta.properties.path},
             )
