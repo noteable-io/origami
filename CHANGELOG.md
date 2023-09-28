@@ -10,6 +10,9 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ### Added
 - CLI for downloading Notebooks and tailing a Notebook to see all RTU messages
+- Modeling for RTU messages that were missing
+  - `variable_explorer_request` on Kernels channel
+  - `append_output_event` on Files channel
 
 ### [1.0.0] - 2023-09-08
 

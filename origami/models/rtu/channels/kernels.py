@@ -62,6 +62,14 @@ class VariableExplorerUpdateRequest(KernelsRequest):
     event: Literal['variable_explorer_update_request'] = 'variable_explorer_update_request'
 
 
+# It is confusing but variable_explorer_update_request can either be an RTU client to Gate server
+# (RTURequest) or also be propogated out by Gate from another client, meaning it comes in as a
+# server-to-client (RTUResponse) so we need to model it just to avoid warning about unmodeled msgs
+class VariableExplorerUpdateRequestPropogated(KernelsResponse):
+    event: Literal['variable_explorer_update_request'] = 'variable_explorer_update_request'
+    data: dict = Field(default_factory=dict)
+
+
 class VariableExplorerResponse(KernelsResponse):
     event: Literal['variable_explorer_event'] = 'variable_explorer_event'
 
@@ -131,6 +139,7 @@ KernelResponses = Annotated[
         KernelSubscribeReply,
         KernelStatusUpdateResponse,
         BulkCellStateUpdateResponse,
+        VariableExplorerUpdateRequestPropogated,
         VariableExplorerResponse,
         IntegratedAIReply,
         IntegratedAIResultReply,

@@ -17,6 +17,7 @@ from typing import Annotated, Any, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationError, root_validator
 
+from origami.models.api.outputs import KernelOutput
 from origami.models.deltas.discriminators import FileDelta
 from origami.models.kernels import CellState, KernelStatusUpdate
 from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse, BooleanReplyData
@@ -119,6 +120,13 @@ class UpdateOutputCollectionEvent(FilesResponse):
     data: UpdateOutputCollectionEventData
 
 
+# If Cells are streaming multiple outputs like a pip install or for loop and print, then we'll get
+# append to output events
+class AppendOutputEvent(FilesResponse):
+    event: Literal['append_output_event'] = 'append_output_event'
+    data: KernelOutput
+
+
 # User cell selection is a collaboration feature, shows which cell each user is currently editing
 # Like Deltas, it follows a request -> reply -> event pattern
 class UpdateUserCellSelectionRequestData(BaseModel):
@@ -219,6 +227,7 @@ FileResponses = Annotated[
         UpdateUserCellSelectionReply,
         UpdateUserFileSubscriptionEvent,
         UpdateOutputCollectionEvent,
+        AppendOutputEvent,
         UsageMetricsEvent,
     ],
     Field(discriminator='event'),
