@@ -1,7 +1,7 @@
 # Quick Start
 The example below will guide you through the basics of creating a notebook, adding content, executing code, and seeing the output. For more examples, see our [Use Cases](../usage.md) section.
 
-!!! info "Developer note: For pre-1.0 release information, see the [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)"
+!!! note "Developer note: For pre-1.0 release information, see the [pre-1.0 README](https://github.com/noteable-io/origami/blob/release/0.0.35/README.md)"
 
 --8<-- "README.md:install"
 
@@ -16,7 +16,7 @@ The example below will guide you through the basics of creating a notebook, addi
 
 ## Creating a new Notebook
 
-!!! info "For this example, we're using the `origamist_default_project_id`, which is the default project designed to be used by the ChatGPT plugin. Feel free to replace it with projects you have access to in [Noteable](https://app.noteable.io/)!"
+!!! note "For this example, we're using the `origamist_default_project_id`, which is the default project designed to be used by the ChatGPT plugin. Feel free to replace it with projects you have access to in [Noteable](https://app.noteable.io/)!"
 
 --8<-- "README.md:create-notebook"
 
