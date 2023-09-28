@@ -198,6 +198,12 @@ class TransformViewToCodeReply(FilesResponse):
     data: BooleanReplyData
 
 
+# Widgets, ugh. Not attempting to model their
+class V0CreateWidgetModelEvent(FilesResponse):
+    event: Literal['v0_create_widget_model_event'] = 'v0_create_widget_model_event'
+    data: Any
+
+
 # When the API squashes Deltas, it will emit a new file versions changed event
 class FileVersionsChangedEvent(FilesResponse):
     event: Literal['v0_file_versions_changed_event'] = 'v0_file_versions_changed_event'
@@ -224,6 +230,7 @@ FileResponses = Annotated[
         NewDeltaEvent,
         RemoveUserFileSubscriptionEvent,
         TransformViewToCodeReply,
+        V0CreateWidgetModelEvent,
         UpdateUserCellSelectionReply,
         UpdateUserFileSubscriptionEvent,
         UpdateOutputCollectionEvent,
