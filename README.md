@@ -75,6 +75,8 @@ The Noteable API requires an authentication token. You can manage tokens at the 
 1. Log in to Noteable (sign up is free)
 2. In the User Settings tab, navigate to `API Tokens` and generate a new token
 
+The token can be passed directly in to `APIClient` on initialization, or set it as env var `NOTEABLE_TOKEN`.
+
 ### Usage
 
 The example below shows how to create a Notebook, launch a Kernel, add new cells, and execute code.
@@ -139,6 +141,10 @@ poetry install -E cli
 1. Fetch the content of a Notebook and write to file: `origami fetch <file-id> > notebook.ipynb`
 2. Tail a Notebook, useful when debugging RTU messages: `origami tail <file-id>`
 
+## Dev ENV settings
+
+- Use `NOTEABLE_API_URL` to point to non-production clusters, such as `http://localhost:8001/api` for local Gate development
+- E2E tests will use `TEST_SPACE_ID`, `TEST_PROJECT_ID`, and `TEST_USER_ID` env vars when running, useful in CI
 
 ## Contributing
 
