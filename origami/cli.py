@@ -12,10 +12,10 @@ app = typer.Typer(no_args_is_help=True)
 
 
 async def _get_notebook(file_id: str, api_url: str = "https://app.noteable.io/gate/api"):
-    if not os.environ['NOTEABLE_TOKEN']:
-        raise RuntimeError('NOTEABLE_TOKEN environment variable not set')
+    if not os.environ["NOTEABLE_TOKEN"]:
+        raise RuntimeError("NOTEABLE_TOKEN environment variable not set")
     api_client = APIClient(
-        authorization_token=os.environ['NOTEABLE_TOKEN'],
+        authorization_token=os.environ["NOTEABLE_TOKEN"],
         api_base_url=api_url,
     )
     rtu_client: RTUClient = await api_client.connect_realtime(file=file_id)
@@ -28,12 +28,12 @@ def fetch(file_id: str, api_url: str = "https://app.noteable.io/gate/api"):
 
 
 async def _tail_notebook(file_id: str, api_url: str = "https://app.noteable.io/gate/api"):
-    if not os.environ['NOTEABLE_TOKEN']:
-        raise RuntimeError('NOTEABLE_TOKEN environment variable not set')
+    if not os.environ["NOTEABLE_TOKEN"]:
+        raise RuntimeError("NOTEABLE_TOKEN environment variable not set")
     setup_logging()
-    logging.getLogger('origami.clients.rtu').setLevel(logging.DEBUG)
+    logging.getLogger("origami.clients.rtu").setLevel(logging.DEBUG)
     api_client = APIClient(
-        authorization_token=os.environ['NOTEABLE_TOKEN'],
+        authorization_token=os.environ["NOTEABLE_TOKEN"],
         api_base_url=api_url,
     )
     print("RTU Client starting initialization")

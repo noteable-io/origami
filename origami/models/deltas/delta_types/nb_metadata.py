@@ -16,7 +16,7 @@ class NBMetadataProperties(BaseModel):
 
 
 class NBMetadataUpdate(NBMetadataDelta):
-    delta_action: Literal['update'] = 'update'
+    delta_action: Literal["update"] = "update"
     properties: NBMetadataProperties
 
 

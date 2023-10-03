@@ -79,7 +79,7 @@ class RTUManager(WebsocketManager):
         # then a second parse to go through the discriminators to a specific event (or fall back
         # to error or BaseRTUResponse)
         data: dict = orjson.loads(contents)
-        data['channel_prefix'] = data.get('channel', '').split('/')[0]
+        data["channel_prefix"] = data.get("channel", "").split("/")[0]
         rtu_event = parse_obj_as(RTUResponse, data)
 
         # Debug Logging
@@ -162,12 +162,12 @@ class DeltaRequestCallbackManager:
     # Delta is guarenteed to be in rtu_client.builder at this point
     """
 
-    def __init__(self, client: 'RTUClient', delta: FileDelta):
+    def __init__(self, client: "RTUClient", delta: FileDelta):
         self.result = asyncio.Future()
         self.client = client
         self.delta = delta  # keep a ref to use in self.delta_cb_ref
         req = NewDeltaRequest(
-            channel=f'files/{self.client.file_id}', data=NewDeltaRequestData(delta=delta)
+            channel=f"files/{self.client.file_id}", data=NewDeltaRequestData(delta=delta)
         )
         # Register one cb by RTU request transaction id in order to catch errors and set Future
         self.rtu_cb_ref = client.register_transaction_id_callback(
@@ -206,7 +206,7 @@ class DeltaRequestCallbackManager:
 
     async def delta_cb(self, delta: FileDelta):
         if delta.id == self.delta.id:
-            logger.debug("Delta squashed", extra={'delta': delta})
+            logger.debug("Delta squashed", extra={"delta": delta})
             if not self.result.done():
                 self.result.set_result(delta)
             self.deregister_callbacks()
@@ -225,7 +225,7 @@ class RTUClient:
         file_id: uuid.UUID,
         file_version_id: uuid.UUID,
         builder: NotebookBuilder,
-        rtu_client_type: str = 'origami',
+        rtu_client_type: str = "origami",
         file_subscribe_timeout: int = 10,
     ):
         """
@@ -290,7 +290,7 @@ class RTUClient:
         self.register_rtu_event_callback(rtu_event=NewDeltaEvent, fn=self._on_delta_recv)
 
         # Kernel and cell state handling
-        self.kernel_state: str = 'not_started'  # value used when there's no Kernel for a Notebook
+        self.kernel_state: str = "not_started"  # value used when there's no Kernel for a Notebook
         self.cell_states: Dict[str, str] = {}
 
         self.register_rtu_event_callback(
@@ -319,7 +319,7 @@ class RTUClient:
     @property
     def kernel_pod_name(self) -> str:
         """Transform the file_id into the Pod name used to build the kernels/ RTU channel"""
-        return f'kernels/notebook-kernel-{self.file_id.hex[:20]}'
+        return f"kernels/notebook-kernel-{self.file_id.hex[:20]}"
 
     def send(self, msg: RTURequest):
         """
@@ -423,7 +423,7 @@ class RTUClient:
         until we've observed an `authenticate_reply` event
         """
         auth_request = AuthenticateRequest(
-            data={'token': self.jwt, 'rtu_client_type': self.rtu_client_type}
+            data={"token": self.jwt, "rtu_client_type": self.rtu_client_type}
         )
 
         # auth_hook is the special situation that shouldn't use manager.send(),
@@ -478,21 +478,21 @@ class RTUClient:
         # Second note, subscribing by delta id all-0's throws an error in Gate.
         if self.builder.last_applied_delta_id and self.builder.last_applied_delta_id != uuid.UUID(int=0):  # type: ignore # noqa: E501
             req = FileSubscribeRequest(
-                channel=f'files/{self.file_id}',
-                data={'from_delta_id': self.builder.last_applied_delta_id},
+                channel=f"files/{self.file_id}",
+                data={"from_delta_id": self.builder.last_applied_delta_id},
             )
             logger.info(
                 "Sending File subscribe request by last applied delta id",
-                extra={'from_delta_id': str(req.data.from_delta_id)},
+                extra={"from_delta_id": str(req.data.from_delta_id)},
             )
         else:
             req = FileSubscribeRequest(
-                channel=f'files/{self.file_id}',
-                data={'from_version_id': self.file_version_id},
+                channel=f"files/{self.file_id}",
+                data={"from_version_id": self.file_version_id},
             )
             logger.info(
                 "Sending File subscribe request by version id",
-                extra={'from_version_id': str(req.data.from_version_id)},
+                extra={"from_version_id": str(req.data.from_version_id)},
             )
         self.file_subscribe_timeout_task = asyncio.create_task(self.on_file_subscribe_timeout())
         self.manager.send(req)
@@ -651,10 +651,10 @@ class RTUClient:
                     "Error trying to run callback while applying delta",
                     exc_info="".join(traceback.format_tb(result.__traceback__)),
                     extra={
-                        'callback': callback,
-                        'delta': delta,
-                        'ename': repr(result),
-                        'traceback': "".join(traceback.format_tb(result.__traceback__)),
+                        "callback": callback,
+                        "delta": delta,
+                        "ename": repr(result),
+                        "traceback": "".join(traceback.format_tb(result.__traceback__)),
                     },
                 )
 
@@ -675,7 +675,7 @@ class RTUClient:
             if delta.parent_delta_id == self.builder.last_applied_delta_id:
                 logger.debug(
                     "Applying previously queued out of order delta",
-                    extra={'delta_id': str(delta.id)},
+                    extra={"delta_id": str(delta.id)},
                 )
                 await self.apply_delta(delta=delta)
                 self.unapplied_deltas.remove(delta)
@@ -694,12 +694,12 @@ class RTUClient:
             if item.cell_id in self._execute_cell_events:
                 # When we see that a cell we're monitoring has finished, resolve the Future to
                 # be the cell
-                if item.state in ['finished_with_error', 'finished_with_no_error']:
+                if item.state in ["finished_with_error", "finished_with_no_error"]:
                     logger.debug(
                         "Cell execution for monitored cell finished",
                         extra={
-                            'cell_id': item.cell_id,
-                            'state': item.state,
+                            "cell_id": item.cell_id,
+                            "state": item.state,
                         },
                     )
                     fut = self._execute_cell_events[item.cell_id]
@@ -712,18 +712,18 @@ class RTUClient:
                             logger.warning(
                                 "Cell execution finished for cell that doesn't exist in Notebook",
                                 extra={
-                                    'cell_id': item.cell_id,
-                                    'state': item.state,
+                                    "cell_id": item.cell_id,
+                                    "state": item.state,
                                 },
                             )
                             fut.set_exception(CellNotFound(item.cell_id))
             self.cell_states[item.cell_id] = item.state
-        logger.debug("Updated cell states", extra={'cell_states': self.cell_states})
+        logger.debug("Updated cell states", extra={"cell_states": self.cell_states})
 
     async def wait_for_kernel_idle(self):
         """Wait for the kernel to be idle"""
         logger.debug("Waiting for Kernel to be idle")
-        while self.kernel_state != 'idle':
+        while self.kernel_state != "idle":
             await asyncio.sleep(0.05)
         logger.debug("Kernel is idle")
 
@@ -738,7 +738,7 @@ class RTUClient:
 
     async def add_cell(
         self,
-        source: str = '',
+        source: str = "",
         cell: Optional[NotebookCell] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
@@ -762,15 +762,15 @@ class RTUClient:
         return cell
 
     async def delete_cell(self, cell_id: str) -> NBCellsDelete:
-        delta = NBCellsDelete(file_id=self.file_id, properties={'id': cell_id})
+        delta = NBCellsDelete(file_id=self.file_id, properties={"id": cell_id})
         return await self.new_delta_request(delta)
 
     async def change_cell_type(
         self,
         cell_id: str,
-        cell_type: Literal['code', 'markdown', 'sql'],
-        code_language: str = 'python',
-        db_connection: str = '@noteable',
+        cell_type: Literal["code", "markdown", "sql"],
+        code_language: str = "python",
+        db_connection: str = "@noteable",
         assign_results_to: Optional[str] = None,
     ) -> NotebookCell:
         """
@@ -779,40 +779,40 @@ class RTUClient:
          - db_connection and assign_results_to only relevant when switching to SQL cell
         """
         self.builder.get_cell(cell_id)  # Raise CellNotFound if it doesn't exist
-        if cell_type == 'code':
+        if cell_type == "code":
             delta = CellMetadataReplace(
                 file_id=self.file_id,
                 resource_id=cell_id,
-                properties={'language': code_language, 'type': 'code'},
+                properties={"language": code_language, "type": "code"},
             )
             await self.new_delta_request(delta)
-        elif cell_type == 'markdown':
+        elif cell_type == "markdown":
             delta = CellMetadataReplace(
                 file_id=self.file_id,
                 resource_id=cell_id,
-                properties={'language': 'markdown', 'type': 'markdown'},
+                properties={"language": "markdown", "type": "markdown"},
             )
             await self.new_delta_request(delta)
-        elif cell_type == 'sql':
+        elif cell_type == "sql":
             delta = CellMetadataReplace(
                 file_id=self.file_id,
                 resource_id=cell_id,
-                properties={'language': 'sql', 'type': 'code'},
+                properties={"language": "sql", "type": "code"},
             )
             await self.new_delta_request(delta)
 
             if not assign_results_to:
                 name_suffix = "".join(random.choices(string.ascii_lowercase, k=4))
-                assign_results_to = 'df_' + name_suffix
+                assign_results_to = "df_" + name_suffix
             delta = CellMetadataUpdate(
                 file_id=self.file_id,
                 resource_id=cell_id,
                 properties={
-                    'path': ['metadata', 'noteable'],
-                    'value': {
-                        'cell_type': 'sql',
-                        'db_connection': db_connection,
-                        'assign_results_to': assign_results_to,
+                    "path": ["metadata", "noteable"],
+                    "value": {
+                        "cell_type": "sql",
+                        "db_connection": db_connection,
+                        "assign_results_to": assign_results_to,
                     },
                 },
             )
@@ -828,7 +828,7 @@ class RTUClient:
         Update cell content with a diff-match-patch patch string
         """
         delta = CellContentsUpdate(
-            file_id=self.file_id, resource_id=cell_id, properties={'patch': patch}
+            file_id=self.file_id, resource_id=cell_id, properties={"patch": patch}
         )
         await self.new_delta_request(delta)
         # Grab updated cell post-squashing
@@ -840,7 +840,7 @@ class RTUClient:
         Replace cell content with a string
         """
         delta = CellContentsReplace(
-            file_id=self.file_id, resource_id=cell_id, properties={'source': source}
+            file_id=self.file_id, resource_id=cell_id, properties={"source": source}
         )
         await self.new_delta_request(delta)
         # Grab updated cell post-squashing
@@ -896,7 +896,7 @@ class RTUClient:
             # will never get executed by PA/Kernel, so we'd never see cell status and resolve future
             future = asyncio.Future()
             idx, cell = self.builder.get_cell(cell_id)
-            if cell.cell_type == 'code' and cell.source.strip():
+            if cell.cell_type == "code" and cell.source.strip():
                 self._execute_cell_events[cell_id] = future
                 futures[future] = cell_id
         await self.new_delta_request(delta)

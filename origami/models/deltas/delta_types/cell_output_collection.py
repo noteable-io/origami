@@ -16,7 +16,7 @@ class CellOutputCollectionReplaceData(BaseModel):
 
 class CellOutputCollectionReplace(CellOutputCollectionDelta):
     # resource_id should be cell id to replace with new output ocllection id
-    delta_action: Literal['replace'] = 'replace'
+    delta_action: Literal["replace"] = "replace"
     properties: CellOutputCollectionReplaceData
 
 

@@ -19,11 +19,11 @@ class BaseRTURequest(BaseModel):
 
     class Config:
         # do not include channel_prefix when serializing to dict / json
-        fields = {'channel_prefix': {'exclude': True}}
+        fields = {"channel_prefix": {"exclude": True}}
 
     @root_validator
     def set_channel_prefix(cls, values):
-        values['channel_prefix'] = values['channel'].split('/')[0]
+        values["channel_prefix"] = values["channel"].split("/")[0]
         return values
 
 
@@ -38,9 +38,9 @@ class BaseRTUResponse(BaseModel):
 
     class Config:
         # do not include channel_prefix when serializing to dict / json
-        fields = {'channel_prefix': {'exclude': True}}
+        fields = {"channel_prefix": {"exclude": True}}
 
     @root_validator
     def set_channel_prefix(cls, values):
-        values['channel_prefix'] = values['channel'].split('/')[0]
+        values["channel_prefix"] = values["channel"].split("/")[0]
         return values

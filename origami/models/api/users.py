@@ -19,5 +19,5 @@ class User(ResourceBase):
 
     @validator("auth_type", always=True)
     def construct_auth_type(cls, v, values):
-        if values.get('principal_sub'):
+        if values.get("principal_sub"):
             return values["principal_sub"].split("|")[0]

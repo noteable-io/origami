@@ -20,7 +20,7 @@ class CellMetadataUpdateProperties(BaseModel):
 
 class CellMetadataUpdate(CellMetadataDelta):
     # resource_id should be cell id to update
-    delta_action: Literal['update'] = 'update'
+    delta_action: Literal["update"] = "update"
     properties: CellMetadataUpdateProperties
 
 
@@ -32,7 +32,7 @@ class CellMetadataReplaceProperties(BaseModel):
 
 class CellMetadataReplace(CellMetadataDelta):
     # resource_id should be cell id to replace
-    delta_action: Literal['replace'] = 'replace'
+    delta_action: Literal["replace"] = "replace"
     properties: CellMetadataReplaceProperties
 
 

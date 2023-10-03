@@ -24,11 +24,11 @@ from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse, BooleanRepl
 
 
 class FilesRequest(BaseRTURequest):
-    channel_prefix: Literal['files'] = 'files'
+    channel_prefix: Literal["files"] = "files"
 
 
 class FilesResponse(BaseRTUResponse):
-    channel_prefix: Literal['files'] = 'files'
+    channel_prefix: Literal["files"] = "files"
 
 
 # When an RTU Client wants to get document model updates from a Notebook, it subscribes to the files
@@ -51,11 +51,11 @@ class FileSubscribeRequestData(BaseModel):
             return values
 
         # If not, raise a validation error
-        raise ValidationError('Exactly one field must be set')
+        raise ValidationError("Exactly one field must be set")
 
 
 class FileSubscribeRequest(FilesRequest):
-    event: Literal['subscribe_request'] = 'subscribe_request'
+    event: Literal["subscribe_request"] = "subscribe_request"
     data: FileSubscribeRequestData
 
 
@@ -70,17 +70,17 @@ class FileSubscribeReplyData(BaseModel):
 
 
 class FileSubscribeReply(FilesResponse):
-    event: Literal['subscribe_reply'] = 'subscribe_reply'
+    event: Literal["subscribe_reply"] = "subscribe_reply"
     data: FileSubscribeReplyData
 
 
 # Clients typically do not need to unsubscribe, they can just close the websocket connection
 class FileUnsubscribeRequest(FilesRequest):
-    event: Literal['unsubscribe_request'] = 'unsubscribe_request'
+    event: Literal["unsubscribe_request"] = "unsubscribe_request"
 
 
 class FileUnsubscribeReply(FilesResponse):
-    event: Literal['unsubscribe_reply'] = 'unsubscribe_reply'
+    event: Literal["unsubscribe_reply"] = "unsubscribe_reply"
     data: BooleanReplyData
 
 
@@ -94,17 +94,17 @@ class NewDeltaRequestData(BaseModel):
 
 
 class NewDeltaRequest(FilesRequest):
-    event: Literal['new_delta_request'] = 'new_delta_request'
+    event: Literal["new_delta_request"] = "new_delta_request"
     data: NewDeltaRequestData
 
 
 class NewDeltaReply(FilesResponse):
-    event: Literal['new_delta_reply'] = 'new_delta_reply'
+    event: Literal["new_delta_reply"] = "new_delta_reply"
     data: BooleanReplyData
 
 
 class NewDeltaEvent(FilesResponse):
-    event: Literal['new_delta_event'] = 'new_delta_event'
+    event: Literal["new_delta_event"] = "new_delta_event"
     data: FileDelta
 
 
@@ -116,14 +116,14 @@ class UpdateOutputCollectionEventData(BaseModel):
 
 
 class UpdateOutputCollectionEvent(FilesResponse):
-    event: Literal['update_output_collection_event'] = 'update_output_collection_event'
+    event: Literal["update_output_collection_event"] = "update_output_collection_event"
     data: UpdateOutputCollectionEventData
 
 
 # If Cells are streaming multiple outputs like a pip install or for loop and print, then we'll get
 # append to output events
 class AppendOutputEvent(FilesResponse):
-    event: Literal['append_output_event'] = 'append_output_event'
+    event: Literal["append_output_event"] = "append_output_event"
     data: KernelOutput
 
 
@@ -134,12 +134,12 @@ class UpdateUserCellSelectionRequestData(BaseModel):
 
 
 class UpdateUserCellSelectionRequest(FilesRequest):
-    event: Literal['update_user_cell_selection_request'] = 'update_user_cell_selection_request'
+    event: Literal["update_user_cell_selection_request"] = "update_user_cell_selection_request"
     data: UpdateUserCellSelectionRequestData
 
 
 class UpdateUserCellSelectionReply(FilesResponse):
-    event: Literal['update_user_cell_selection_reply'] = 'update_user_cell_selection_reply'
+    event: Literal["update_user_cell_selection_reply"] = "update_user_cell_selection_reply"
     data: BooleanReplyData
 
 
@@ -152,7 +152,7 @@ class UpdateUserFileSubscriptionEventData(BaseModel):
 
 
 class UpdateUserFileSubscriptionEvent(FilesResponse):
-    event: Literal['update_user_file_subscription_event'] = 'update_user_file_subscription_event'
+    event: Literal["update_user_file_subscription_event"] = "update_user_file_subscription_event"
     data: UpdateUserFileSubscriptionEventData
 
 
@@ -161,7 +161,7 @@ class RemoveUserFileSubscriptionEventData(BaseModel):
 
 
 class RemoveUserFileSubscriptionEvent(FilesResponse):
-    event: Literal['remove_user_file_subscription_event'] = 'remove_user_file_subscription_event'
+    event: Literal["remove_user_file_subscription_event"] = "remove_user_file_subscription_event"
     data: RemoveUserFileSubscriptionEventData
 
 
@@ -172,7 +172,7 @@ class UsageMetricsEventData(BaseModel):
 
 
 class UsageMetricsEvent(FilesResponse):
-    event: Literal['usage_metrics_event'] = 'usage_metrics_event'
+    event: Literal["usage_metrics_event"] = "usage_metrics_event"
     data: UsageMetricsEventData
 
 
@@ -184,30 +184,30 @@ class TransformViewToCodeRequestData(BaseModel):
     filters: Any
     ignore_index: bool = True
     overrides: dict = Field(default_factory=dict)
-    target_cell_type: str = 'code'
-    variable_name: str = 'df'
+    target_cell_type: str = "code"
+    variable_name: str = "df"
 
 
 class TransformViewToCodeRequest(FilesRequest):
-    event: Literal['transform_view_to_code_request'] = 'transform_view_to_code_request'
+    event: Literal["transform_view_to_code_request"] = "transform_view_to_code_request"
     data: TransformViewToCodeRequestData
 
 
 class TransformViewToCodeReply(FilesResponse):
-    event: Literal['transform_view_to_code_reply'] = 'transform_view_to_code_reply'
+    event: Literal["transform_view_to_code_reply"] = "transform_view_to_code_reply"
     data: BooleanReplyData
 
 
 # Widgets, ugh. Not attempting to model the payload, no current plan on doing anything with them
 # on the Origami side.
 class V0CreateWidgetModelEvent(FilesResponse):
-    event: Literal['v0_create_widget_model_event'] = 'v0_create_widget_model_event'
+    event: Literal["v0_create_widget_model_event"] = "v0_create_widget_model_event"
     data: Any
 
 
 # When the API squashes Deltas, it will emit a new file versions changed event
 class FileVersionsChangedEvent(FilesResponse):
-    event: Literal['v0_file_versions_changed_event'] = 'v0_file_versions_changed_event'
+    event: Literal["v0_file_versions_changed_event"] = "v0_file_versions_changed_event"
     data: Optional[dict]
 
 
@@ -219,7 +219,7 @@ FileRequests = Annotated[
         UpdateUserCellSelectionRequest,
         TransformViewToCodeRequest,
     ],
-    Field(discriminator='event'),
+    Field(discriminator="event"),
 ]
 
 FileResponses = Annotated[
@@ -238,5 +238,5 @@ FileResponses = Annotated[
         AppendOutputEvent,
         UsageMetricsEvent,
     ],
-    Field(discriminator='event'),
+    Field(discriminator="event"),
 ]

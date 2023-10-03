@@ -28,15 +28,15 @@ class APIClient:
         headers: Optional[dict] = None,
         transport: Optional[httpx.AsyncHTTPTransport] = None,
         timeout: httpx.Timeout = httpx.Timeout(5.0),
-        rtu_client_type: str = 'origami',
+        rtu_client_type: str = "origami",
     ):
         # jwt and api_base_url saved as attributes because they're re-used when creating rtu client
-        self.jwt = authorization_token or os.environ.get('NOTEABLE_TOKEN')
+        self.jwt = authorization_token or os.environ.get("NOTEABLE_TOKEN")
         if not self.jwt:
             raise ValueError(
-                'Must provide authorization_token or set NOTEABLE_TOKEN environment variable'
+                "Must provide authorization_token or set NOTEABLE_TOKEN environment variable"
             )
-        self.api_base_url = os.environ.get('NOTEABLE_API_URL', api_base_url)
+        self.api_base_url = os.environ.get("NOTEABLE_API_URL", api_base_url)
         self.headers = {"Authorization": f"Bearer {self.jwt}"}
         if headers:
             self.headers.update(headers)
@@ -48,8 +48,8 @@ class APIClient:
             timeout=timeout,
         )
         # Hack until Gate changes out rtu_client_type from enum to str
-        if rtu_client_type not in ['origami', 'origamist', 'planar_ally', 'geas']:
-            rtu_client_type = 'unknown'
+        if rtu_client_type not in ["origami", "origamist", "planar_ally", "geas"]:
+            rtu_client_type = "unknown"
         self.rtu_client_type = rtu_client_type  # Only used when generating an RTUClient
 
     def add_tags_and_contextvars(self, **tags):
@@ -108,7 +108,7 @@ class APIClient:
         self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = "/projects"
         resp = await self.client.post(
-            endpoint, json={'space_id': str(space_id), "name": name, "description": description}
+            endpoint, json={"space_id": str(space_id), "name": name, "description": description}
         )
         resp.raise_for_status()
         project = Project.parse_obj(resp.json())
@@ -134,7 +134,7 @@ class APIClient:
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
         """List all Files in a Project. Files do not have presigned download urls included here."""
         self.add_tags_and_contextvars(project_id=str(project_id))
-        endpoint = f'/projects/{project_id}/files'
+        endpoint = f"/projects/{project_id}/files"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         files = [File.parse_obj(file) for file in resp.json()]
@@ -145,7 +145,7 @@ class APIClient:
         self,
         project_id: uuid.UUID,
         path: str,
-        file_type: Literal['file', 'notebook'],
+        file_type: Literal["file", "notebook"],
         content: bytes,
     ) -> File:
         # Uploading files using the /v1/files endpoint is a multi-step process.
@@ -158,7 +158,7 @@ class APIClient:
             "project_id": str(project_id),
             "path": path,
             "type": file_type,
-            'file_size_bytes': len(content),
+            "file_size_bytes": len(content),
         }
         resp = await self.client.post("/v1/files", json=body)
         resp.raise_for_status()
@@ -173,8 +173,8 @@ class APIClient:
         # (2) Upload to pre-signed url
         # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
         # localhost urls to the minio pod/container
-        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
-            upload_url = upload_url.replace('localhost', 'minio')
+        if "LOCAL_K8S" in os.environ and bool(os.environ["LOCAL_K8S"]):
+            upload_url = upload_url.replace("localhost", "minio")
         async with httpx.AsyncClient() as plain_client:
             r = await plain_client.put(upload_url, content=content)
             r.raise_for_status()
@@ -215,7 +215,7 @@ class APIClient:
     async def get_file(self, file_id: uuid.UUID) -> File:
         """Get metadata about a File, not including its content. Includes presigned download url."""
         self.add_tags_and_contextvars(file_id=str(file_id))
-        endpoint = f'/v1/files/{file_id}'
+        endpoint = f"/v1/files/{file_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         file = File.parse_obj(resp.json())
@@ -230,8 +230,8 @@ class APIClient:
             raise ValueError(f"File {file.id} does not have a presigned download url")
         # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
         # localhost urls to the minio pod/container
-        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
-            presigned_download_url = presigned_download_url.replace('localhost', 'minio')
+        if "LOCAL_K8S" in os.environ and bool(os.environ["LOCAL_K8S"]):
+            presigned_download_url = presigned_download_url.replace("localhost", "minio")
         async with httpx.AsyncClient() as plain_http_client:
             resp = await plain_http_client.get(presigned_download_url)
             resp.raise_for_status()
@@ -243,7 +243,7 @@ class APIClient:
         of any previous version. Note when working with older versions, you do not want to establish
         an RTUClient to "catch up" past that version.
         """
-        endpoint = f'/files/{file_id}/versions'
+        endpoint = f"/files/{file_id}/versions"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         versions = [FileVersion.parse_obj(version) for version in resp.json()]
@@ -251,7 +251,7 @@ class APIClient:
 
     async def delete_file(self, file_id: uuid.UUID) -> File:
         self.add_tags_and_contextvars(file_id=str(file_id))
-        endpoint = f'/v1/files/{file_id}'
+        endpoint = f"/v1/files/{file_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
         file = File.parse_obj(resp.json())
@@ -268,14 +268,14 @@ class APIClient:
         return datasources
 
     async def launch_kernel(
-        self, file_id: uuid.UUID, kernel_name: str = 'python3', hardware_size: str = 'small'
+        self, file_id: uuid.UUID, kernel_name: str = "python3", hardware_size: str = "small"
     ) -> KernelSession:
-        endpoint = '/v1/sessions'
+        endpoint = "/v1/sessions"
         data = {
-            'file_id': str(file_id),
-            'kernel_config': {
-                'kernel_name': kernel_name,
-                'hardware_size_identifier': hardware_size,
+            "file_id": str(file_id),
+            "kernel_config": {
+                "kernel_name": kernel_name,
+                "hardware_size_identifier": hardware_size,
             },
         }
         resp = await self.client.post(endpoint, json=data)
@@ -289,7 +289,7 @@ class APIClient:
         return kernel_session
 
     async def shutdown_kernel(self, kernel_session_id: uuid.UUID) -> None:
-        endpoint = f'/sessions/{kernel_session_id}'
+        endpoint = f"/sessions/{kernel_session_id}"
         resp = await self.client.delete(endpoint, timeout=60)
         resp.raise_for_status()
         logger.info("Shut down kernel", extra={"kernel_session_id": str(kernel_session_id)})
@@ -297,7 +297,7 @@ class APIClient:
     async def get_output_collection(
         self, output_collection_id: uuid.UUID
     ) -> KernelOutputCollection:
-        endpoint = f'/outputs/collection/{output_collection_id}'
+        endpoint = f"/outputs/collection/{output_collection_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
         return KernelOutputCollection.parse_obj(resp.json())
@@ -325,21 +325,21 @@ class APIClient:
 
         logger.info(f"Creating RTUClient for file {file_id}")
         file = await self.get_file(file_id)
-        if file.type != 'notebook':
+        if file.type != "notebook":
             raise ValueError(f"File {file_id} is not a notebook")
         if not file.presigned_download_url:
             raise ValueError(f"File {file_id} does not have a presigned download url")
         # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
         # localhost urls to the minio pod/container
-        if 'LOCAL_K8S' in os.environ and bool(os.environ['LOCAL_K8S']):
-            file.presigned_download_url = file.presigned_download_url.replace('localhost', 'minio')
+        if "LOCAL_K8S" in os.environ and bool(os.environ["LOCAL_K8S"]):
+            file.presigned_download_url = file.presigned_download_url.replace("localhost", "minio")
         async with httpx.AsyncClient() as plain_http_client:
             resp = await plain_http_client.get(file.presigned_download_url)
             resp.raise_for_status()
 
         seed_notebook = Notebook.parse_obj(resp.json())
         nb_builder = NotebookBuilder(seed_notebook=seed_notebook)
-        rtu_url = self.api_base_url.replace('http', 'ws') + '/v1/rtu'
+        rtu_url = self.api_base_url.replace("http", "ws") + "/v1/rtu"
         rtu_client = RTUClient(
             rtu_url=rtu_url,
             jwt=self.jwt,

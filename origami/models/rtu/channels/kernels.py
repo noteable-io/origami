@@ -13,11 +13,11 @@ from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse, BooleanRepl
 
 
 class KernelsRequest(BaseRTURequest):
-    channel_prefix: Literal['kernels'] = 'kernels'
+    channel_prefix: Literal["kernels"] = "kernels"
 
 
 class KernelsResponse(BaseRTUResponse):
-    channel_prefix: Literal['kernels'] = 'kernels'
+    channel_prefix: Literal["kernels"] = "kernels"
 
 
 class KernelSubscribeRequestData(BaseModel):
@@ -25,7 +25,7 @@ class KernelSubscribeRequestData(BaseModel):
 
 
 class KernelSubscribeRequest(KernelsRequest):
-    event: Literal['subscribe_request'] = 'subscribe_request'
+    event: Literal["subscribe_request"] = "subscribe_request"
     data: KernelSubscribeRequestData
 
 
@@ -36,12 +36,12 @@ class KernelSubscribeReplyData(BaseModel):
 
 
 class KernelSubscribeReply(KernelsResponse):
-    event: Literal['subscribe_reply'] = 'subscribe_reply'
+    event: Literal["subscribe_reply"] = "subscribe_reply"
     data: KernelSubscribeReplyData
 
 
 class KernelStatusUpdateResponse(KernelsResponse):
-    event: Literal['kernel_status_update_event'] = 'kernel_status_update_event'
+    event: Literal["kernel_status_update_event"] = "kernel_status_update_event"
     data: KernelStatusUpdate
 
 
@@ -51,7 +51,7 @@ class BulkCellStateUpdateData(BaseModel):
 
 
 class BulkCellStateUpdateResponse(KernelsResponse):
-    event: Literal['bulk_cell_state_update_event'] = 'bulk_cell_state_update_event'
+    event: Literal["bulk_cell_state_update_event"] = "bulk_cell_state_update_event"
     data: BulkCellStateUpdateData
 
 
@@ -59,19 +59,19 @@ class BulkCellStateUpdateResponse(KernelsResponse):
 # On connect to a new Kernel, Clients can send a request to trigger an event. Otherwise events occur
 # after cell execution automatically.
 class VariableExplorerUpdateRequest(KernelsRequest):
-    event: Literal['variable_explorer_update_request'] = 'variable_explorer_update_request'
+    event: Literal["variable_explorer_update_request"] = "variable_explorer_update_request"
 
 
 # It is confusing but variable_explorer_update_request can either be an RTU client to Gate server
 # (RTURequest) or also be propogated out by Gate from another client, meaning it comes in as a
 # server-to-client (RTUResponse) so we need to model it just to avoid warning about unmodeled msgs
 class VariableExplorerUpdateRequestPropogated(KernelsResponse):
-    event: Literal['variable_explorer_update_request'] = 'variable_explorer_update_request'
+    event: Literal["variable_explorer_update_request"] = "variable_explorer_update_request"
     data: dict = Field(default_factory=dict)
 
 
 class VariableExplorerResponse(KernelsResponse):
-    event: Literal['variable_explorer_event'] = 'variable_explorer_event'
+    event: Literal["variable_explorer_event"] = "variable_explorer_event"
 
 
 class IntegratedAIRequestData(BaseModel):
@@ -85,17 +85,17 @@ class IntegratedAIRequestData(BaseModel):
 
 
 class IntegratedAIRequest(KernelsRequest):
-    event: Literal['integrated_ai_request'] = 'integrated_ai_request'
+    event: Literal["integrated_ai_request"] = "integrated_ai_request"
     data: IntegratedAIRequestData
 
 
 class IntegratedAIReply(KernelsResponse):
-    event: Literal['integrated_ai_reply'] = 'integrated_ai_reply'
+    event: Literal["integrated_ai_reply"] = "integrated_ai_reply"
     data: BooleanReplyData
 
 
 class IntegratedAIEvent(KernelsResponse):
-    event: Literal['integrated_ai_event'] = 'integrated_ai_event'
+    event: Literal["integrated_ai_event"] = "integrated_ai_event"
     # same data as the IntegratedAIRequest, just echoed back out
     data: IntegratedAIRequestData
 
@@ -110,17 +110,17 @@ class IntegratedAIResultData(BaseModel):
 # this is sidecar to gate as a result of calling the OpenAIHandler method (OpenAI response,
 # error, etc); after that, Gate propogates the data out as an IntegratedAIEvent
 class IntegratedAIResult(KernelsRequest):
-    event: Literal['integrated_ai_result'] = 'integrated_ai_result'
+    event: Literal["integrated_ai_result"] = "integrated_ai_result"
     data: IntegratedAIResultData
 
 
 class IntegratedAIResultReply(KernelsResponse):
-    event: Literal['integrated_ai_result_reply'] = 'integrated_ai_result_reply'
+    event: Literal["integrated_ai_result_reply"] = "integrated_ai_result_reply"
     data: BooleanReplyData
 
 
 class IntegratedAIResultEvent(KernelsResponse):
-    event: Literal['integrated_ai_result_event'] = 'integrated_ai_result_event'
+    event: Literal["integrated_ai_result_event"] = "integrated_ai_result_event"
     data: IntegratedAIResultData
 
 

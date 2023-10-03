@@ -15,7 +15,7 @@ RTURequest = Annotated[
         KernelRequests,
         SystemRequests,
     ],
-    Field(discriminator='channel_prefix'),
+    Field(discriminator="channel_prefix"),
 ]
 
 # Use: pydantic.pares_obj_as(RTUResponse, <payload-as-dict>)
@@ -29,7 +29,7 @@ RTUResponse = Union[
             KernelResponses,
             SystemResponses,
         ],
-        Field(discriminator='channel_prefix'),
+        Field(discriminator="channel_prefix"),
     ],
     RTUError,
     BaseRTUResponse,
