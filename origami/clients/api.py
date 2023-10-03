@@ -28,7 +28,7 @@ class APIClient:
         headers: Optional[dict] = None,
         transport: Optional[httpx.AsyncHTTPTransport] = None,
         timeout: httpx.Timeout = httpx.Timeout(5.0),
-        rtu_client_type: str = "origami",
+        creator_client_type: str = "origami",
     ):
         # jwt and api_base_url saved as attributes because they're re-used when creating rtu client
         self.jwt = authorization_token or os.environ.get("NOTEABLE_TOKEN")
@@ -47,10 +47,13 @@ class APIClient:
             transport=transport,
             timeout=timeout,
         )
-        # Hack until Gate changes out rtu_client_type from enum to str
-        if rtu_client_type not in ["origami", "origamist", "planar_ally", "geas"]:
-            rtu_client_type = "unknown"
-        self.rtu_client_type = rtu_client_type  # Only used when generating an RTUClient
+        # creator_client_type helps log what kind of client created Resources like Files/Projects
+        # or is interacting with Notebooks through RTU / Deltas. If you're not sure what to use
+        # yourself, go with the default 'origami'
+        if creator_client_type not in ["origami", "origamist", "planar_ally", "geas"]:
+            # this list of valid creator client types is sourced from Gate's FrontendType enum
+            creator_client_type = "unknown"
+        self.creator_client_type = creator_client_type  # Only used when generating an RTUClient
 
     def add_tags_and_contextvars(self, **tags):
         """Hook for Apps to override so they can set structlog contextvars or ddtrace tags etc"""
@@ -108,7 +111,13 @@ class APIClient:
         self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = "/projects"
         resp = await self.client.post(
-            endpoint, json={"space_id": str(space_id), "name": name, "description": description}
+            endpoint,
+            json={
+                "space_id": str(space_id),
+                "name": name,
+                "description": description,
+                "creator_client_type": self.creator_client_type,
+            },
         )
         resp.raise_for_status()
         project = Project.parse_obj(resp.json())
@@ -159,6 +168,7 @@ class APIClient:
             "path": path,
             "type": file_type,
             "file_size_bytes": len(content),
+            "creator_client_type": self.creator_client_type,
         }
         resp = await self.client.post("/v1/files", json=body)
         resp.raise_for_status()
@@ -346,7 +356,7 @@ class APIClient:
             file_id=file.id,
             file_version_id=file.current_version_id,
             builder=nb_builder,
-            rtu_client_type=self.rtu_client_type,
+            rtu_client_type=self.creator_client_type,
         )
         await rtu_client.initialize()
         await rtu_client.deltas_to_apply_event.wait()
