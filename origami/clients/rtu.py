@@ -467,7 +467,7 @@ class RTUClient:
                 await self.send_file_subscribe()
             except Exception:
                 logger.exception("Error sending file subscribe request")
-        logger.info("done handling default auth, calling custom on_auth")
+
         await self.on_auth(msg)
 
     async def send_file_subscribe(self):
