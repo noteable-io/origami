@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, ValidationError, root_validator
+from pydantic import BaseModel, Field, root_validator
 
 from origami.models.api.outputs import KernelOutput
 from origami.models.deltas.discriminators import FileDelta
@@ -47,11 +47,8 @@ class FileSubscribeRequestData(BaseModel):
         num_set_fields = sum(value is not None for value in values.values())
 
         # If exactly one field is set, return the values as they are
-        if num_set_fields == 1:
-            return values
-
-        # If not, raise a validation error
-        raise ValidationError("Exactly one field must be set")
+        assert num_set_fields == 1, "Exactly one field must be set"
+        return values
 
 
 class FileSubscribeRequest(FilesRequest):
