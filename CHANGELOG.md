@@ -8,6 +8,9 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ## [Unreleased]
 
+### Changed
+ - `rtu_client_type` renamed to `client_creator_type`, now used both in RTU auth subscribe and when creating Files/Projects
+
 ### [1.1.0] - 2023-09-28
 ### Added
 - CLI for downloading Notebooks and tailing a Notebook to see all RTU messages
