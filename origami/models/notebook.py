@@ -101,27 +101,27 @@ class CodeCell(CellBase):
 
 def make_sql_cell(
     cell_id: Optional[str] = None,
-    source: str = '',
-    db_connection: str = '@noteable',
+    source: str = "",
+    db_connection: str = "@noteable",
     assign_results_to: Optional[str] = None,
 ) -> CodeCell:
     cell_id = cell_id or str(uuid.uuid4())
     # Remove first line of source if it starts with %%sql. That is the right syntax for regular
     # code cells with sql magic support, but Noteable SQL cells should have just the sql source
-    if source.startswith('%%sql'):
+    if source.startswith("%%sql"):
         lines = source.splitlines()
-        source = '\n'.join(lines[1:])
+        source = "\n".join(lines[1:])
 
     if not assign_results_to:
         name_suffix = "".join(random.choices(string.ascii_lowercase, k=4))
-        assign_results_to = 'df_' + name_suffix
+        assign_results_to = "df_" + name_suffix
     metadata = {
-        'language': 'sql',
-        'type': 'code',
-        'noteable': {
-            'cell_type': 'sql',
-            'db_connection': db_connection,
-            'assign_results_to': assign_results_to,
+        "language": "sql",
+        "type": "code",
+        "noteable": {
+            "cell_type": "sql",
+            "db_connection": db_connection,
+            "assign_results_to": assign_results_to,
         },
     }
     return CodeCell(cell_id=cell_id, source=source, metadata=metadata)

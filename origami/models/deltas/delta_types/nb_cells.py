@@ -17,7 +17,7 @@ class NBCellsAddProperties(BaseModel):
 
 
 class NBCellsAdd(NBCellsDelta):
-    delta_action: Literal['add'] = 'add'
+    delta_action: Literal["add"] = "add"
     properties: NBCellsAddProperties
 
 
@@ -26,7 +26,7 @@ class NBCellsDeleteProperties(BaseModel):
 
 
 class NBCellsDelete(NBCellsDelta):
-    delta_action: Literal['delete'] = 'delete'
+    delta_action: Literal["delete"] = "delete"
     properties: NBCellsDeleteProperties
 
 
@@ -36,7 +36,7 @@ class NBCellsMoveProperties(BaseModel):
 
 
 class NBCellsMove(NBCellsDelta):
-    delta_action: Literal['move'] = 'move'
+    delta_action: Literal["move"] = "move"
     properties: NBCellsMoveProperties
 
 

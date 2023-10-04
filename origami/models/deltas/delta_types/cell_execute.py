@@ -12,24 +12,24 @@ class CellExecuteDelta(FileDeltaBase):
 class CellExecute(CellExecuteDelta):
     # execute single cel
     # resource_id should be cell id to run
-    delta_action: Literal['execute'] = 'execute'
+    delta_action: Literal["execute"] = "execute"
 
 
 class CellExecuteAfter(CellExecuteDelta):
     # execute specific cell id and all cells after it
     # resource_id should be cell id to run
-    delta_action: Literal['execute_after'] = 'execute_after'
+    delta_action: Literal["execute_after"] = "execute_after"
 
 
 class CellExecuteBefore(CellExecuteDelta):
     # execute all cells up to specific cell, inclusive of that cell id
     # resource_id should be cell id to run
-    delta_action: Literal['execute_before'] = 'execute_before'
+    delta_action: Literal["execute_before"] = "execute_before"
 
 
 class CellExecuteAll(CellExecuteDelta):
     # execute all cells
-    delta_action: Literal['execute_all'] = 'execute_all'
+    delta_action: Literal["execute_all"] = "execute_all"
 
 
 CellExecuteDeltas = Annotated[

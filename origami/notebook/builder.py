@@ -112,7 +112,7 @@ class NotebookBuilder:
             handler(delta)
             self.last_applied_delta_id = delta.id
         except Exception as e:  # noqa: E722
-            logger.exception("Error squashing Delta into NotebookBuilder", extra={'delta': delta})
+            logger.exception("Error squashing Delta into NotebookBuilder", extra={"delta": delta})
             raise e
 
     def add_cell(self, delta: NBCellsAdd):
@@ -199,7 +199,7 @@ class NotebookBuilder:
         if delta.resource_id in self.deleted_cell_ids:
             logger.debug(
                 f"Skipping update_cell_metadata for deleted cell {delta.resource_id}",
-                extra={'delta_properties_path': delta.properties.path},
+                extra={"delta_properties_path": delta.properties.path},
             )
             return
 
@@ -210,7 +210,7 @@ class NotebookBuilder:
             # and we end up emitting a cell execution timing metadata as it gets deleted
             logger.warning(
                 "Got update_cell_metadata for cell that isn't in notebook or deleted_cell_ids",  # noqa: E501
-                extra={'delta_properties_path': delta.properties.path},
+                extra={"delta_properties_path": delta.properties.path},
             )
             return
 

@@ -19,24 +19,24 @@ from origami.models.rtu.base import BaseRTURequest, BaseRTUResponse
 
 
 class SystemRequest(BaseRTURequest):
-    channel: str = 'system'
-    channel_prefix: Literal['system'] = 'system'
+    channel: str = "system"
+    channel_prefix: Literal["system"] = "system"
 
 
 class SystemResponse(BaseRTUResponse):
-    channel: str = 'system'
-    channel_prefix: Literal['system'] = 'system'
+    channel: str = "system"
+    channel_prefix: Literal["system"] = "system"
 
 
 # The first thing RTU Clients should do after websocket connection is authenticate with a JWT,
 # same access token as what is included in Authorization bearer headers for API requests
 class AuthenticateRequestData(BaseModel):
     token: str
-    rtu_client_type: str = 'origami'
+    rtu_client_type: str = "origami"
 
 
 class AuthenticateRequest(SystemRequest):
-    event: Literal['authenticate_request'] = 'authenticate_request'
+    event: Literal["authenticate_request"] = "authenticate_request"
     data: AuthenticateRequestData
 
 
@@ -46,21 +46,21 @@ class AuthenticateReplyData(BaseModel):
 
 
 class AuthenticateReply(SystemResponse):
-    event: Literal['authenticate_reply'] = 'authenticate_reply'
+    event: Literal["authenticate_reply"] = "authenticate_reply"
     data: AuthenticateReplyData
 
 
 # Below is all mainly used for debug, App devs don't need to do anything with these usually
 class PingRequest(SystemRequest):
-    event: Literal['ping_request'] = 'ping_request'
+    event: Literal["ping_request"] = "ping_request"
 
 
 class PingResponse(SystemResponse):
-    event: Literal['ping_response'] = 'ping_response'
+    event: Literal["ping_response"] = "ping_response"
 
 
 class WhoAmIRequest(SystemRequest):
-    event: Literal['whoami_request'] = 'whoami_request'
+    event: Literal["whoami_request"] = "whoami_request"
 
 
 class WhoAmIResponseData(BaseModel):
@@ -68,7 +68,7 @@ class WhoAmIResponseData(BaseModel):
 
 
 class WhoAmIResponse(SystemResponse):
-    event: Literal['whoami_response'] = 'whoami_response'
+    event: Literal["whoami_response"] = "whoami_response"
     data: WhoAmIResponseData
 
 
@@ -78,7 +78,7 @@ SystemRequests = Annotated[
         PingRequest,
         WhoAmIRequest,
     ],
-    Field(discriminator='event'),
+    Field(discriminator="event"),
 ]
 SystemResponses = Annotated[
     Union[
@@ -86,5 +86,5 @@ SystemResponses = Annotated[
         PingResponse,
         WhoAmIResponse,
     ],
-    Field(discriminator='event'),
+    Field(discriminator="event"),
 ]
