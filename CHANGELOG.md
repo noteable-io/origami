@@ -10,6 +10,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ### Changed
  - `rtu_client_type` renamed to `client_creator_type`, now used both in RTU auth subscribe and when creating Files/Projects
+ - `RTUClient` crashes if trying to instantiate with no file version id, which can happen after a Notebook has been changed from non-RTU mechanism
 
 ### [1.1.0] - 2023-09-28
 ### Added

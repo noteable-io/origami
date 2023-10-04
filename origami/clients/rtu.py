@@ -36,6 +36,7 @@ from origami.models.rtu.base import BaseRTUResponse
 from origami.models.rtu.channels.files import (
     FileSubscribeReply,
     FileSubscribeRequest,
+    FileSubscribeRequestData,
     NewDeltaEvent,
     NewDeltaRequest,
     NewDeltaRequestData,
@@ -255,6 +256,10 @@ class RTUClient:
         self.jwt = jwt
         self.file_id = file_id
         self.file_version_id = file_version_id
+        if not self.file_version_id:
+            raise ValueError(
+                "File version id cannot be None. This can happen if a Notebook has had its file version wiped due to inconsistent state (changes made through non RTU mechanism)."  # noqa: E501
+            )
         self.builder = builder
         self.rtu_client_type = rtu_client_type
         self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
@@ -458,7 +463,11 @@ class RTUClient:
                 self.manager.authed_ws = asyncio.Future()
 
             self.manager.authed_ws.set_result(self.manager.unauth_ws.result())
-            await self.send_file_subscribe()
+            try:
+                await self.send_file_subscribe()
+            except Exception:
+                logger.exception("Error sending file subscribe request")
+
         await self.on_auth(msg)
 
     async def send_file_subscribe(self):
@@ -477,23 +486,27 @@ class RTUClient:
         #
         # Second note, subscribing by delta id all-0's throws an error in Gate.
         if self.builder.last_applied_delta_id and self.builder.last_applied_delta_id != uuid.UUID(int=0):  # type: ignore # noqa: E501
-            req = FileSubscribeRequest(
-                channel=f"files/{self.file_id}",
-                data={"from_delta_id": self.builder.last_applied_delta_id},
-            )
             logger.info(
                 "Sending File subscribe request by last applied delta id",
-                extra={"from_delta_id": str(req.data.from_delta_id)},
+                extra={"from_delta_id": str(self.builder.last_applied_delta_id)},
             )
-        else:
+            req_data = FileSubscribeRequestData(from_delta_id=self.builder.last_applied_delta_id)
             req = FileSubscribeRequest(
                 channel=f"files/{self.file_id}",
-                data={"from_version_id": self.file_version_id},
+                data=req_data,
             )
+
+        else:
             logger.info(
                 "Sending File subscribe request by version id",
-                extra={"from_version_id": str(req.data.from_version_id)},
+                extra={"from_version_id": str(self.file_version_id)},
             )
+            req_data = FileSubscribeRequestData(from_version_id=self.file_version_id)
+            req = FileSubscribeRequest(
+                channel=f"files/{self.file_id}",
+                data=req_data,
+            )
+
         self.file_subscribe_timeout_task = asyncio.create_task(self.on_file_subscribe_timeout())
         self.manager.send(req)
 
