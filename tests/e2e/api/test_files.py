@@ -47,7 +47,3 @@ async def test_get_file_version(api_client: APIClient, notebook_maker):
     assert new_versions[0].number == 1
 
     assert len(new_versions) == 2
-
-    assert len(new_versions) == 2
-
-    assert len(new_versions) == 2
