@@ -311,7 +311,7 @@ class APIClient:
         resp.raise_for_status()
         return KernelOutputCollection.parse_obj(resp.json())
 
-    async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> "RTUClient":
+    async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> "RTUClient":  # noqa
         """
         Create an RTUClient for a Notebook by file id. This will perform the following steps:
          - Check /v1/files to get the current version information and presigned download url
