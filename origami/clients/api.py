@@ -84,13 +84,12 @@ class APIClient:
         space = Space.parse_obj(resp.json())
         return space
 
-    async def delete_space(self, space_id: uuid.UUID) -> Space:
+    async def delete_space(self, space_id: uuid.UUID) -> None:
         self.add_tags_and_contextvars(space_id=str(space_id))
         endpoint = f"/spaces/{space_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
-        space = Space.parse_obj(resp.json())
-        return space
+        return None
 
     async def list_space_projects(self, space_id: uuid.UUID) -> List[Project]:
         """List all Projects in a Space."""

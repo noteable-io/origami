@@ -235,7 +235,7 @@ class RTUClient:
         High-level client over the Sending websocket backend / RTUManager (serialize websocket msgs
         to/from RTU models) that allows you to add callbacks by RTU event type or Delta type/action.
 
-        - On .initialize(), will make a websocket connection to {rtu_url}
+        - On .initialize(), will make a websocket connection to Gate
           - RTUManager / Sending websocket backend handles reconnection
           - RTUClient sets .manager.auth_hook to kick off the auth request, don't override that
           - awaits .on_websocket_connect() hook that you can override in application code
@@ -256,7 +256,10 @@ class RTUClient:
         """
         self.api_client = api_client
 
-        rtu_url = api_client.api_base_url.replace("http", "ws") + "/v1/rtu"
+        rtu_url = (
+            os.environ.get("NOTEABLE_RTU_URL")
+            or api_client.api_base_url.replace("http", "ws") + "/v1/rtu"
+        )
         self.manager = RTUManager(ws_url=rtu_url)  # Sending websocket backend w/ RTU serialization
         self.file_id = file_id
 

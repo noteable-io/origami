@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+### Added
+- Environ variable `NOTEABLE_RTU_URL` to override RTU websocket, primarily for when apps are running in-cluster with Gate and need to use the http vs websocket service DNS
 
 ### Changed
- - Move the code logic for discovering recent version id and downloading seed Notebook from `APIClient` to `RTUClient`
+- Move the code logic for discovering recent version id and downloading seed Notebook from `APIClient` to `RTUClient`
 
 ### [1.1.1] - 2023-10-04
 ### Changed
