@@ -60,7 +60,7 @@ class FileSubscribeRequest(FilesRequest):
 # - List of deltas to squash into the NotebookBuilder immediately
 class FileSubscribeReplyData(BaseModel):
     deltas_to_apply: List[FileDelta]
-    latest_delta_id: uuid.UUID
+    latest_delta_id: Optional[uuid.UUID]
     kernel_session: Optional[KernelStatusUpdate]  # null if no active Kernel for the File
     cell_states: List[CellState]
     # TODO: user_subscriptions

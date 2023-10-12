@@ -6,7 +6,6 @@ from typing import List, Literal, Optional, Union
 import httpx
 import pydantic
 
-from origami.clients.rtu import RTUClient
 from origami.models.api.datasources import DataSource
 from origami.models.api.files import File, FileVersion
 from origami.models.api.outputs import KernelOutputCollection
@@ -15,7 +14,6 @@ from origami.models.api.spaces import Space
 from origami.models.api.users import User
 from origami.models.kernels import KernelSession
 from origami.models.notebook import Notebook
-from origami.notebook.builder import NotebookBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +114,7 @@ class APIClient:
                 "space_id": str(space_id),
                 "name": name,
                 "description": description,
+                "with_empty_notebook": False,
                 "creator_client_type": self.creator_client_type,
             },
         )
@@ -312,7 +311,7 @@ class APIClient:
         resp.raise_for_status()
         return KernelOutputCollection.parse_obj(resp.json())
 
-    async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> RTUClient:
+    async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> "RTUClient":  # noqa
         """
         Create an RTUClient for a Notebook by file id. This will perform the following steps:
          - Check /v1/files to get the current version information and presigned download url
@@ -320,6 +319,9 @@ class APIClient:
          - Create an RTUClient, initialize the websocket connection, authenticate, and subscribe
          - Apply delts to in-memory NotebookBuilder
         """
+        # Import here to avoid circular imports
+        from origami.clients.rtu import RTUClient
+
         file_id = None
 
         if isinstance(file, str):
@@ -334,30 +336,11 @@ class APIClient:
         self.add_tags_and_contextvars(file_id=str(file_id))
 
         logger.info(f"Creating RTUClient for file {file_id}")
-        file = await self.get_file(file_id)
-        if file.type != "notebook":
-            raise ValueError(f"File {file_id} is not a notebook")
-        if not file.presigned_download_url:
-            raise ValueError(f"File {file_id} does not have a presigned download url")
-        # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
-        # localhost urls to the minio pod/container
-        if "LOCAL_K8S" in os.environ and bool(os.environ["LOCAL_K8S"]):
-            file.presigned_download_url = file.presigned_download_url.replace("localhost", "minio")
-        async with httpx.AsyncClient() as plain_http_client:
-            resp = await plain_http_client.get(file.presigned_download_url)
-            resp.raise_for_status()
-
-        seed_notebook = Notebook.parse_obj(resp.json())
-        nb_builder = NotebookBuilder(seed_notebook=seed_notebook)
-        rtu_url = self.api_base_url.replace("http", "ws") + "/v1/rtu"
-        rtu_client = RTUClient(
-            rtu_url=rtu_url,
-            jwt=self.jwt,
-            file_id=file.id,
-            file_version_id=file.current_version_id,
-            builder=nb_builder,
-            rtu_client_type=self.creator_client_type,
-        )
+        rtu_client = RTUClient(api_client=self, file_id=file_id)
+        # .initialize() downloads the seed notebook, establishes websocket, subscribes to various
+        # channels, and begins squashing deltas.
         await rtu_client.initialize()
+        # This event is resolved once all deltas from the file_subscribe reply deltas_to_apply
+        # payload have been applied to the RTUClient NotebookBuilder
         await rtu_client.deltas_to_apply_event.wait()
         return rtu_client

@@ -83,24 +83,3 @@ async def test_replace_cell_content(api_client: APIClient, notebook_maker):
         assert cell.source == "2 + 2"
     finally:
         await rtu_client.shutdown()
-
-
-async def test_notebook_has_no_current_file_version(api_client: APIClient, notebook_maker):
-    file: File = await notebook_maker()
-    # TODO: remove sleep when Gate stops permission denied on newly created files (db time-travel)
-    await asyncio.sleep(2)
-    rtu_client = await api_client.connect_realtime(file)
-    # now that we have a working rtu_client, we'll try and make a second one that is missing the
-    # file_version_id, which should raise an error
-    try:
-        with pytest.raises(ValueError) as e:
-            RTUClient(
-                rtu_url=rtu_client.manager.ws_url,
-                jwt=rtu_client.jwt,
-                file_id=rtu_client.file_id,
-                file_version_id=None,
-                builder=rtu_client.builder,
-            )
-        assert e.value.args[0].startswith("File version id cannot be None.")
-    finally:
-        await rtu_client.shutdown()

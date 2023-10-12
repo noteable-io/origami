@@ -6,17 +6,21 @@ Deltas by delta type and delta action.
 """
 import asyncio
 import logging
+import os
 import random
 import string
 import traceback
 import uuid
 from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type
 
+import httpx
 import orjson
 from pydantic import BaseModel, parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
+from origami.clients.api import APIClient
+from origami.models.api.files import File
 from origami.models.deltas.delta_types.cell_contents import CellContentsReplace, CellContentsUpdate
 from origami.models.deltas.delta_types.cell_execute import (
     CellExecute,
@@ -31,12 +35,13 @@ from origami.models.deltas.delta_types.nb_cells import (
     NBCellsDelete,
 )
 from origami.models.deltas.discriminators import FileDelta
-from origami.models.notebook import CodeCell, NotebookCell
+from origami.models.notebook import CodeCell, Notebook, NotebookCell
 from origami.models.rtu.base import BaseRTUResponse
 from origami.models.rtu.channels.files import (
     FileSubscribeReply,
     FileSubscribeRequest,
     FileSubscribeRequestData,
+    FileUnsubscribeRequest,
     NewDeltaEvent,
     NewDeltaRequest,
     NewDeltaRequestData,
@@ -47,6 +52,7 @@ from origami.models.rtu.channels.kernels import (
 )
 from origami.models.rtu.channels.system import AuthenticateReply, AuthenticateRequest
 from origami.models.rtu.discriminators import RTURequest, RTUResponse
+from origami.models.rtu.errors import InconsistentStateEvent
 from origami.notebook.builder import CellNotFound, NotebookBuilder
 
 logger = logging.getLogger(__name__)
@@ -221,12 +227,8 @@ class DeltaRequestCallbackManager:
 class RTUClient:
     def __init__(
         self,
-        rtu_url: str,
-        jwt: str,
+        api_client: APIClient,
         file_id: uuid.UUID,
-        file_version_id: uuid.UUID,
-        builder: NotebookBuilder,
-        rtu_client_type: str = "origami",
         file_subscribe_timeout: int = 10,
     ):
         """
@@ -252,24 +254,21 @@ class RTUClient:
             handles queueing and replaying out of order deltas
           - Callbacks run after the Delta is "squashed" into {builder}
         """
+        self.api_client = api_client
+
+        rtu_url = api_client.api_base_url.replace("http", "ws") + "/v1/rtu"
         self.manager = RTUManager(ws_url=rtu_url)  # Sending websocket backend w/ RTU serialization
-        self.jwt = jwt
         self.file_id = file_id
-        self.file_version_id = file_version_id
-        if not self.file_version_id:
-            raise ValueError(
-                "File version id cannot be None. This can happen if a Notebook has had its file version wiped due to inconsistent state (changes made through non RTU mechanism)."  # noqa: E501
-            )
-        self.builder = builder
-        self.rtu_client_type = rtu_client_type
+
+        self.rtu_session_id = None  # Set after establishing websocket connection on .initialize()
+        self.builder = None  # Set from .build_notebook, called as part of .initialize()
         self.user_id = None  # set during authenticate_reply handling, used in new_delta_request
+
         # When we send file subscribe request, it'll create a task to run .on_file_subscribe_timeout
         # which should blow up the RTU Client. Otherwise we can get stuck indefinitely waiting
         # for .deltas_to_apply event. If we get through initialization okay, the task will cancel
         self.file_subcribe_timeout = file_subscribe_timeout
         self.file_subscribe_timeout_task: Optional[asyncio.Task] = None
-
-        self.rtu_session_id = None
 
         # Callbacks triggered from Sending based on websocket connection lifecycle events
         self.manager.auth_hook = self.auth_hook
@@ -305,6 +304,13 @@ class RTUClient:
             rtu_event=BulkCellStateUpdateResponse, fn=self.on_bulk_cell_state_update
         )
 
+        # An inconsistent state event means the Notebook was updated in a way that "broke" Delta
+        # history, and the RTUClient needs to pull in the seed notebook and re-apply deltas from
+        # a "new" current version id in order to catch up
+        self.register_rtu_event_callback(
+            rtu_event=InconsistentStateEvent, fn=self.on_inconsistent_state_event
+        )
+
         # Log anytime we get an un-modeled RTU message.
         # Not going through register_rtu_event_callback because isinstance would catch child classes
         def predicate_fn(topic: Literal[""], msg: RTUResponse):
@@ -315,6 +321,17 @@ class RTUClient:
         # When someone calls .execute_cell, return an asyncio.Future that will be resolved to be
         # the updated Cell model when the cell is done executing
         self._execute_cell_events: Dict[str, asyncio.Future[CodeCell]] = {}
+
+    async def catastrophic_failure(self):
+        """
+        A hook for applications like PA to override so they can handle things like Pod shutdown
+        in cases where the RTUClient cannot recover. Examples are when reloading Notebook state
+        after inconsistent_state_event and not getting a current_version_id to subscribe by or
+        getting Deltas that cannot be squashed into the builder
+        """
+        logger.warning("Catastrophic failure, shutting down RTUClient")
+        await self.shutdown(now=True)
+        raise RuntimeError("Catastrophic failure, shutting down RTUClient")
 
     @property
     def cell_ids(self):
@@ -391,6 +408,7 @@ class RTUClient:
         # - taking messages taken off the inbound queue and running callbacks
         # - taking messages from outbound queue and sending them over the wire
         # - if queue_size is 0, it means no max queue size for inbound/outbound asyncio.Queue
+        await self.load_seed_notebook()
         await self.manager.initialize(
             queue_size=queue_size,
             inbound_workers=inbound_workers,
@@ -399,7 +417,41 @@ class RTUClient:
         )
 
     async def shutdown(self, now: bool = False):
-        await self.manager.shutdown(now=now)
+        try:
+            await self.manager.shutdown(now=now)
+        except AttributeError:
+            # if the manager was never initialized, then the queues are None and will raise
+            # AttributeError while trying to .join() them
+            pass
+
+    async def load_seed_notebook(self):
+        """
+        Pull in the seed notebook that will be the base document model of the NotebookBuilder, which
+        can then squash Deltas that update the Notebook, including deltas_to_apply on file subscribe
+        which represents changes that may have happened since the last "save" to s3.
+         - Get current file version and presigned url from /v1/files endpoint
+         - Download and parse seed notebook into Notebook / NotebookBuilder
+        """
+        file: File = await self.api_client.get_file(file_id=self.file_id)
+
+        # Current file version id is used in file subscribe request
+        if not file.current_version_id:
+            logger.warning(f"Gate shows now current version id for File {self.file_id}, aborting.")
+            await self.catastrophic_failure()
+        self.file_version_id = file.current_version_id
+
+        logger.info("Downloading seed Notebook")
+        # Download seed Notebook and parse into Notebook / NotebookBuilder
+        # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
+        # localhost urls to the minio pod/container -- relevant to Noteable devs only
+        if "LOCAL_K8S" in os.environ and bool(os.environ["LOCAL_K8S"]):
+            file.presigned_download_url = file.presigned_download_url.replace("localhost", "minio")
+        async with httpx.AsyncClient() as plain_http_client:
+            resp = await plain_http_client.get(file.presigned_download_url)
+            resp.raise_for_status()
+
+        seed_notebook = Notebook.parse_obj(resp.json())
+        self.builder = NotebookBuilder(seed_notebook=seed_notebook)
 
     # See Sending backends.websocket for details but a quick refresher on hook timing:
     # - context_hook is called within the while True loop for inbound worker, outbound worker,
@@ -427,15 +479,16 @@ class RTUClient:
         .send() / ._publish will effectively suspend sending messages over the websocket
         until we've observed an `authenticate_reply` event
         """
+        jwt = self.api_client.jwt
         auth_request = AuthenticateRequest(
-            data={"token": self.jwt, "rtu_client_type": self.rtu_client_type}
+            data={"token": jwt, "rtu_client_type": self.api_client.creator_client_type}
         )
 
         # auth_hook is the special situation that shouldn't use manager.send(),
         # since that will ultimately delay sending things over the wire until
         # we observe the auth reply. Instead use the unauth_ws directly and manually serialize
         ws: WebSocketClientProtocol = await self.manager.unauth_ws
-        logger.info(f"Sending auth request with jwt {self.jwt[:5]}...{self.jwt[-5:]}")
+        logger.info(f"Sending auth request with jwt {jwt[:5]}...{jwt[-5:]}")
         await ws.send(auth_request.json())
 
     async def on_auth(self, msg: AuthenticateReply):
@@ -566,6 +619,33 @@ class RTUClient:
         # Application code may want to do extra things like subscribe to kernels channel or users
         # channel for each msg.data['user_subscriptions'].
         await self.on_file_subscribe(msg)
+
+    async def file_unsubscribe(self):
+        """
+        Send file unsubscribe request to Gate. This is called when the RTUClient is shutting down.
+        """
+        req = FileUnsubscribeRequest(channel=f"files/{self.file_id}")
+        self.manager.send(req)
+
+    async def on_inconsistent_state_event(self, msg: InconsistentStateEvent):
+        """
+        To "reset" our internal document model, we need to unsubscribe from the files channel at
+        the least, to stop getting new deltas in. Then we need to figure out what the new current
+        version id is, and pull down seed notebook, and then resubscribe to file channel.
+        """
+        logger.info("Received inconsistent state event, resetting NotebookBuilder")
+        # There's the chance for some gnarly but rare edge cases here that would probably take a
+        # serious amount of thinking and logic to handle. Basically, what happens if new Deltas
+        # come in while we're trying to "reset" the document model after an inconsistent state?
+        # - Can the unsubscribe be handled in Gate after the second subscribe? Unlikely since it's
+        #   the same Gate handling both (websocket, sticky session).
+        # - Can Deltas end up coming in out of order, something come over the wire while we're
+        #   in the middle of resetting? Potentially, but that would just end up leading to failure
+        #   to apply delta and catastrophic failure, which is effectively what we were doing on
+        #   inconsistent_state_event before adding this method here.
+        await self.file_unsubscribe()
+        await self.load_seed_notebook()
+        await self.send_file_subscribe()
 
     async def _on_delta_recv(self, msg: NewDeltaEvent):
         """

@@ -8,6 +8,9 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ## [Unreleased]
 
+### Changed
+ - Move the code logic for discovering recent version id and downloading seed Notebook from `APIClient` to `RTUClient`
+
 ### [1.1.1] - 2023-10-04
 ### Changed
  - `rtu_client_type` renamed to `client_creator_type`, now used both in RTU auth subscribe and when creating Files/Projects
