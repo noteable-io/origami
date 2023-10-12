@@ -10,6 +10,10 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 ### Added
 - Environ variable `NOTEABLE_RTU_URL` to override RTU websocket, primarily for when apps are running in-cluster with Gate and need to use the http vs websocket service DNS
 
+### [1.1.2] - 2023-10-12
+### Added
+- Environ variable `NOTEABLE_RTU_URL` to override RTU websocket, primarily for when apps are running in-cluster with Gate and need to use the http vs websocket service DNS
+
 ### Changed
 - Move the code logic for discovering recent version id and downloading seed Notebook from `APIClient` to `RTUClient`
 
