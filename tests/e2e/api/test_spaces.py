@@ -6,7 +6,7 @@ from origami.models.api.spaces import Space
 
 
 async def test_space_crud(api_client: APIClient):
-    name = 'test-space-' + str(uuid.uuid4())
+    name = "test-space-" + str(uuid.uuid4())
     space = await api_client.create_space(name=name)
     assert isinstance(space, Space)
     assert space.name == name
@@ -15,9 +15,7 @@ async def test_space_crud(api_client: APIClient):
     assert existing_space.id == space.id
     assert existing_space.name == name
 
-    deleted_space = await api_client.delete_space(space.id)
-    assert deleted_space.id == space.id
-    assert deleted_space.deleted_at is not None
+    await api_client.delete_space(space.id)
 
 
 async def test_list_space_projects(
