@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import Any, Optional
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, Field, model_validator
+from typing_extensions import Annotated
 
 
 class BooleanReplyData(BaseModel):
