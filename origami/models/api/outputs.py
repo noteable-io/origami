@@ -14,11 +14,11 @@ class KernelOutputContent(BaseModel):
 
 class KernelOutput(ResourceBase):
     type: str
-    display_id: Optional[str]
+    display_id: Optional[str] = None
     available_mimetypes: List[str]
     content_metadata: KernelOutputContent
-    content: Optional[KernelOutputContent]
-    content_for_llm: Optional[KernelOutputContent]
+    content: Optional[KernelOutputContent] = None
+    content_for_llm: Optional[KernelOutputContent] = None
     parent_collection_id: uuid.UUID
 
 

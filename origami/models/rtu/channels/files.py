@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, root_validator
+from pydantic import ConfigDict, BaseModel, Field, model_validator
 
 from origami.models.api.outputs import KernelOutput
 from origami.models.deltas.discriminators import FileDelta
@@ -37,18 +37,20 @@ class FileSubscribeRequestData(BaseModel):
     # One of these two must be set
     from_version_id: Optional[uuid.UUID] = None
     from_delta_id: Optional[uuid.UUID] = None
+    model_config = ConfigDict(exclude_none=True)
 
-    class Config:
-        exclude_none = True
-
-    @root_validator
-    def exactly_one_field(cls, values):
+    @model_validator(mode="after")
+    def exactly_one_field(self):
         # Count how many fields are set (i.e., are not None)
-        num_set_fields = sum(value is not None for value in values.values())
+        num_set_fields = sum(
+            value is not None for value in (self.from_version_id, self.from_delta_id)
+        )
 
         # If exactly one field is set, return the values as they are
-        assert num_set_fields == 1, "Exactly one field must be set"
-        return values
+        if not num_set_fields == 1:
+            raise ValueError("Exactly one field must be set")
+
+        return self
 
 
 class FileSubscribeRequest(FilesRequest):
@@ -60,8 +62,8 @@ class FileSubscribeRequest(FilesRequest):
 # - List of deltas to squash into the NotebookBuilder immediately
 class FileSubscribeReplyData(BaseModel):
     deltas_to_apply: List[FileDelta]
-    latest_delta_id: Optional[uuid.UUID]
-    kernel_session: Optional[KernelStatusUpdate]  # null if no active Kernel for the File
+    latest_delta_id: Optional[uuid.UUID] = None
+    kernel_session: Optional[KernelStatusUpdate] = None  # null if no active Kernel for the File
     cell_states: List[CellState]
     # TODO: user_subscriptions
 
@@ -141,7 +143,7 @@ class UpdateUserCellSelectionReply(FilesResponse):
 
 
 class UpdateUserFileSubscriptionEventData(BaseModel):
-    cell_id_selected: Optional[str]
+    cell_id_selected: Optional[str] = None
     file_id: uuid.UUID
     last_event_at: datetime
     subscribed: bool
@@ -178,7 +180,7 @@ class UsageMetricsEvent(FilesResponse):
 class TransformViewToCodeRequestData(BaseModel):
     # TODO: Shoup review this
     cell_id: str
-    filters: Any
+    filters: Any = None
     ignore_index: bool = True
     overrides: dict = Field(default_factory=dict)
     target_cell_type: str = "code"
@@ -199,13 +201,13 @@ class TransformViewToCodeReply(FilesResponse):
 # on the Origami side.
 class V0CreateWidgetModelEvent(FilesResponse):
     event: Literal["v0_create_widget_model_event"] = "v0_create_widget_model_event"
-    data: Any
+    data: Any = None
 
 
 # When the API squashes Deltas, it will emit a new file versions changed event
 class FileVersionsChangedEvent(FilesResponse):
     event: Literal["v0_file_versions_changed_event"] = "v0_file_versions_changed_event"
-    data: Optional[dict]
+    data: Optional[dict] = None
 
 
 FileRequests = Annotated[

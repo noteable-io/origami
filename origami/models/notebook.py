@@ -13,7 +13,7 @@ import string
 import uuid
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import field_validator, ConfigDict, BaseModel, Field
 from typing_extensions import Annotated  # for 3.8 compatibility
 
 
@@ -25,7 +25,9 @@ class StreamOutput(BaseModel):
     name: str  # stdout or stderr
     text: str
 
-    @validator("text", pre=True)
+    # XXX write test
+    @field_validator("text", mode="before")
+    @classmethod
     def multiline_text(cls, v):
         """In the event we get a list of strings, combine into one string with newlines."""
         if isinstance(v, list):
@@ -41,7 +43,7 @@ class DisplayDataOutput(BaseModel):
 
 class ExecuteResultOutput(BaseModel):
     output_type: Literal["execute_result"] = "execute_result"
-    execution_count: Optional[int]
+    execution_count: Optional[int] = None
     data: Dict[str, Any]
     metadata: Dict[str, Any]
 
@@ -75,14 +77,15 @@ class CellBase(BaseModel):
     source: str = ""
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator("source", pre=True)
+    # XXX write test.
+    @field_validator("source", mode="before")
+    @classmethod
     def multiline_source(cls, v):
         if isinstance(v, list):
             return "\n".join(v)
         return v
 
-    class Config:
-        validate_on_assignment = True
+    model_config = ConfigDict(validate_on_assignment=True)
 
 
 class CodeCell(CellBase):

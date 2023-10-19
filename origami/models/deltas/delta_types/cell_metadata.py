@@ -14,7 +14,7 @@ class CellMetadataDelta(FileDeltaBase):
 # A lot of state is stored in cell metadata, including DEX and execute time
 class CellMetadataUpdateProperties(BaseModel):
     path: list
-    value: Any
+    value: Any = None
     prior_value: Any = NULL_PRIOR_VALUE_SENTINEL
 
 
@@ -26,8 +26,8 @@ class CellMetadataUpdate(CellMetadataDelta):
 
 # Cell metadata replace is used for changing cell type and language (Python/R/etc)
 class CellMetadataReplaceProperties(BaseModel):
-    type: Optional[str]
-    language: Optional[str]
+    type: Optional[str] = None
+    language: Optional[str] = None
 
 
 class CellMetadataReplace(CellMetadataDelta):

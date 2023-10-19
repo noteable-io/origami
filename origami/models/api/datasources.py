@@ -12,9 +12,9 @@ class DataSource(BaseModel):
     type_id: str  # e.g. duckdb, postgresql
     sql_cell_handle: str  # this goes in cell metadata for SQL cells
     # One of these three will be not None, and that tells you the scope of the datasource
-    space_id: Optional[uuid.UUID]
-    project_id: Optional[uuid.UUID]
-    user_id: Optional[uuid.UUID]
+    space_id: Optional[uuid.UUID] = None
+    project_id: Optional[uuid.UUID] = None
+    user_id: Optional[uuid.UUID] = None
     created_by_id: uuid.UUID
     created_at: datetime
     updated_at: datetime

@@ -12,7 +12,7 @@ class NBCellsDelta(FileDeltaBase):
 
 class NBCellsAddProperties(BaseModel):
     id: str  # should be same as cell.id
-    after_id: Optional[str]  # insert this cell after another cell in the Notebook
+    after_id: Optional[str] = None  # insert this cell after another cell in the Notebook
     cell: NotebookCell
 
 
@@ -32,7 +32,7 @@ class NBCellsDelete(NBCellsDelta):
 
 class NBCellsMoveProperties(BaseModel):
     id: str
-    after_id: Optional[str]
+    after_id: Optional[str] = None
 
 
 class NBCellsMove(NBCellsDelta):

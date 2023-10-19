@@ -143,11 +143,18 @@ class DeltaRejected(Exception):
 
 
 # Used in registering callback functions that get called right after squashing a Delta
-class DeltaCallback(BaseModel):
+class DeltaCallback:
     # callback function should be async and expect one argument: a FileDelta
     # Doesn't matter what it returns. Pydantic doesn't validate Callable args/return.
     delta_class: Type[FileDelta]
     fn: Callable[[FileDelta], Awaitable[None]]
+
+    def __init__(self, delta_class: Type[FileDelta], fn: Callable[[FileDelta], Awaitable[None]]):
+        if not issubclass(delta_class, FileDelta):
+            raise ValueError(f"delta_class must be a FileDelta subclass, got {delta_class}")
+
+        self.delta_class = delta_class
+        self.fn = fn
 
 
 class DeltaRequestCallbackManager:
