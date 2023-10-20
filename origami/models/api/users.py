@@ -17,7 +17,6 @@ class User(ResourceBase):
     principal_sub: Optional[str] = None  # from /users/me only, represents auth type
     auth_type: Optional[str] = None
 
-    # XXX write test
     @model_validator(mode="after")
     def construct_auth_type(self):
         if self.principal_sub:
