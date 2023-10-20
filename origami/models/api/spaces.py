@@ -11,7 +11,6 @@ class Space(ResourceBase):
     description: Optional[str] = None
     url: Optional[str] = None
 
-    # XXX write test.
     @model_validator(mode="after")
     def construct_url(self):
         noteable_url = os.environ.get("PUBLIC_NOTEABLE_URL", "https://app.noteable.io")

@@ -1,22 +1,7 @@
 from uuid import uuid4
-import os
 from datetime import datetime
 
-import pytest
-
 from origami.models.api.files import File
-
-
-@pytest.fixture
-def tmp_noteable_url_environ() -> str:
-    orig_value = os.environ.get("PUBLIC_NOTEABLE_URL", "")
-
-    new_value = "https://localhost/api"
-    os.environ["PUBLIC_NOTEABLE_URL"] = new_value
-
-    yield new_value
-
-    os.environ["PUBLIC_NOTEABLE_URL"] = orig_value
 
 
 class TestFile:
