@@ -1,3 +1,4 @@
+import enum
 import logging
 import os
 import uuid
@@ -16,6 +17,21 @@ from origami.models.kernels import KernelSession
 from origami.models.notebook import Notebook
 
 logger = logging.getLogger(__name__)
+
+
+class AccessLevel(enum.Enum):
+    owner = "role:owner"
+    contributor = "role:contributor"
+    commenter = "role:commenter"
+    viewer = "role:viewer"
+    executor = "role:executor"
+
+    @classmethod
+    def from_str(cls, s: str):
+        for level in cls:
+            if level.name == s:
+                return level
+        raise ValueError(f"Invalid access level {s}")
 
 
 class APIClient:
@@ -137,6 +153,29 @@ class APIClient:
         resp.raise_for_status()
         project = Project.parse_obj(resp.json())
         return project
+
+    async def share_project(
+        self, project_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another user as a collaborator to a project. Return value is the number of user_ids
+        that were found matching the email, and which were updated to the given access level.
+        """
+        user_lookup_endpoint = f"/projects/{project_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        if isinstance(level, str):
+            level = AccessLevel.from_str(level)
+        share_endpoint = f"/projects/{project_id}/users"
+        for item in users:
+            user_id = item["id"]
+            share_body = {"access_level": level.value, "user_id": user_id}
+            share_resp = await self.client.put(share_endpoint, json=share_body)
+            share_resp.raise_for_status()
+        return len(users)
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
         """List all Files in a Project. Files do not have presigned download urls included here."""
