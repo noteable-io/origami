@@ -11,11 +11,14 @@ class BooleanReplyData(BaseModel):
     success: bool
 
 
-class ChannelPrefixable(BaseModel):
+class BaseRTU(BaseModel):
+    transaction_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     channel: str
     channel_prefix: Annotated[
         Optional[str], Field(exclude=True)
     ] = None  # override in Channels base classes to be Literal
+    event: str  # override in Events subclasses to be Literal
+    data: Any = None  # override in subclasses to be a pydantic model
 
     @model_validator(mode="after")
     def set_channel_prefix(self):
@@ -23,19 +26,9 @@ class ChannelPrefixable(BaseModel):
         return self
 
 
-class BaseRTURequest(ChannelPrefixable):
-    transaction_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    event: str  # override in Events subclasses to be Literal
-    data: Any = None  # override in subclasses to be a pydantic model
-
-    # XXX write tests over set_channel_prefix
+class BaseRTURequest(BaseRTU):
+    pass
 
 
-class BaseRTUResponse(ChannelPrefixable):
-    transaction_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    event: str  # override in Events subclasses to be Literal
-    data: Any = None  # override in subclasses to be a pydantic model
-    executing_user_id: Optional[uuid.UUID] = None
+class BaseRTUResponse(BaseRTU):
     processed_timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-    # XXX write tests over set_channel_prefix
