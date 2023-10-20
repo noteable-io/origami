@@ -25,7 +25,6 @@ class StreamOutput(BaseModel):
     name: str  # stdout or stderr
     text: str
 
-    # XXX write test
     @field_validator("text", mode="before")
     @classmethod
     def multiline_text(cls, v):
@@ -77,7 +76,6 @@ class CellBase(BaseModel):
     source: str = ""
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    # XXX write test.
     @field_validator("source", mode="before")
     @classmethod
     def multiline_source(cls, v):
