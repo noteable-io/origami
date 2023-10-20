@@ -15,7 +15,7 @@ from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type
 
 import httpx
 import orjson
-from pydantic import BaseModel, parse_obj_as
+from pydantic import parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
