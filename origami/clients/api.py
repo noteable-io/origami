@@ -116,6 +116,45 @@ class APIClient:
         projects = [Project.parse_obj(project) for project in resp.json()]
         return projects
 
+    async def share_space(
+        self, space_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another user as a collaborator to a Space.
+        """
+        user_lookup_endpoint = f"/spaces/{space_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        if isinstance(level, str):
+            level = AccessLevel.from_str(level)
+        share_endpoint = f"/spaces/{space_id}/users"
+        for item in users:
+            user_id = item["id"]
+            share_body = {"access_level": level.value, "user_id": user_id}
+            share_resp = await self.client.put(share_endpoint, json=share_body)
+            share_resp.raise_for_status()
+        return len(users)
+
+    async def unshare_space(self, space_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Space for a User
+        """
+        user_lookup_endpoint = f"/spaces/{space_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        for item in users:
+            user_id = item["id"]
+            unshare_endpoint = f"/spaces/{space_id}/users/{user_id}"
+            unshare_resp = await self.client.delete(unshare_endpoint)
+            unshare_resp.raise_for_status()
+        return len(users)
+
     # Projects are collections of Files, including Notebooks. When a Kernel is launched for a
     # Notebook, all Files in the Project are volume mounted into the Kernel container at startup.
     async def create_project(
@@ -158,8 +197,7 @@ class APIClient:
         self, project_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
     ) -> int:
         """
-        Add another user as a collaborator to a project. Return value is the number of user_ids
-        that were found matching the email, and which were updated to the given access level.
+        Add another User as a collaborator to a Project.
         """
         user_lookup_endpoint = f"/projects/{project_id}/shareable-users"
         user_lookup_params = {"q": email}
@@ -175,6 +213,23 @@ class APIClient:
             share_body = {"access_level": level.value, "user_id": user_id}
             share_resp = await self.client.put(share_endpoint, json=share_body)
             share_resp.raise_for_status()
+        return len(users)
+
+    async def unshare_project(self, project_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Project for a User
+        """
+        user_lookup_endpoint = f"/projects/{project_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        for item in users:
+            user_id = item["id"]
+            unshare_endpoint = f"/projects/{project_id}/users/{user_id}"
+            unshare_resp = await self.client.delete(unshare_endpoint)
+            unshare_resp.raise_for_status()
         return len(users)
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
@@ -303,6 +358,45 @@ class APIClient:
         resp.raise_for_status()
         file = File.parse_obj(resp.json())
         return file
+
+    async def share_file(
+        self, file_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another User as a collaborator to a Notebook or File.
+        """
+        user_lookup_endpoint = f"/files/{file_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        if isinstance(level, str):
+            level = AccessLevel.from_str(level)
+        share_endpoint = f"/files/{file_id}/users"
+        for item in users:
+            user_id = item["id"]
+            share_body = {"access_level": level.value, "user_id": user_id}
+            share_resp = await self.client.put(share_endpoint, json=share_body)
+            share_resp.raise_for_status()
+        return len(users)
+
+    async def unshare_file(self, file_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Notebook or File for a User
+        """
+        user_lookup_endpoint = f"/files/{file_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        for item in users:
+            user_id = item["id"]
+            unshare_endpoint = f"/files/{file_id}/users/{user_id}"
+            unshare_resp = await self.client.delete(unshare_endpoint)
+            unshare_resp.raise_for_status()
+        return len(users)
 
     async def get_datasources_for_notebook(self, file_id: uuid.UUID) -> List[DataSource]:
         """Return a list of Datasources that can be used in SQL cells within a Notebook"""
