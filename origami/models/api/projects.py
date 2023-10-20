@@ -13,7 +13,6 @@ class Project(ResourceBase):
     space_id: uuid.UUID
     url: Optional[str] = None
 
-    # XXX write test.
     @model_validator(mode="after")
     def construct_url(self):
         noteable_url = os.environ.get("PUBLIC_NOTEABLE_URL", "https://app.noteable.io")
