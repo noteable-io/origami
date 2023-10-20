@@ -1,7 +1,6 @@
-from uuid import uuid4
 import os
 from datetime import datetime
-
+from uuid import uuid4
 
 from origami.models.api.users import User
 

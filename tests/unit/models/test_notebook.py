@@ -2,8 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-
-from origami.models.notebook import StreamOutput, CellBase
+from origami.models.notebook import CellBase, StreamOutput
 
 
 class TestStreamOutput:
