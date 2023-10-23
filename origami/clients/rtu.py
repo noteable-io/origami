@@ -332,9 +332,7 @@ class RTUClient:
         after inconsistent_state_event and not getting a current_version_id to subscribe by or
         getting Deltas that cannot be squashed into the builder
         """
-        logger.warning("Catastrophic failure, shutting down RTUClient")
-        await self.shutdown(now=True)
-        raise RuntimeError("Catastrophic failure, shutting down RTUClient")
+        logger.warning("Catastrophic failure, RTU applications can override this hook")
 
     @property
     def cell_ids(self):
@@ -439,8 +437,8 @@ class RTUClient:
 
         # Current file version id is used in file subscribe request
         if not file.current_version_id:
-            logger.warning(f"Gate shows now current version id for File {self.file_id}, aborting.")
-            await self.catastrophic_failure()
+            logger.warning(f"Gate shows no current version id for File {self.file_id}, aborting.")
+            return await self.catastrophic_failure()
         self.file_version_id = file.current_version_id
 
         logger.info("Downloading seed Notebook")
