@@ -12,8 +12,6 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ### Changed
 - Removed `RuntimeError` in RTUClient catastrophic failure, top level applications (e.g. PA, Origamist) should define that behavior
-
-### Changed
 - Upgraded pydantic to 2.4.2 up from 1.X.
 
 ### [1.1.2] - 2023-10-12
