@@ -170,7 +170,9 @@ class APIClient:
 
         patch_body = {"visibility": visibility.value}
         if isinstance(visibility_default_access_level, str):
-            visibility_default_access_level = AccessLevel.from_str(visibility_default_access_level).value
+            visibility_default_access_level = AccessLevel.from_str(
+                visibility_default_access_level
+            ).value
 
         # always set this as either None or a valid (string) value
         patch_body["visibility_default_access_level"] = visibility_default_access_level
