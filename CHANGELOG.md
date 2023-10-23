@@ -8,9 +8,13 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ## [Unreleased]
 
+### [1.1.4] - 2023-10-24
+### Added
+- Programmatically adjust Space, Project, and Notebook/File visibility (e.g. `private`, `open`, `public`)
+
 ### [1.1.3] - 2023-10-23
 ### Added
-- Programmatically share access to Spaces, Projects, and Notebooks/Files by email and access level. E.g. `await api_client.share_file(file_id, email, 'viewer')`, as well as change Space/Project/File visibility (e.g. `private`, `open`, `public`)
+- Programmatically share access to Spaces, Projects, and Notebooks/Files by email and access level. E.g. `await api_client.share_file(file_id, email, 'viewer')`
 
 ### Changed
 - Removed `RuntimeError` in RTUClient catastrophic failure, top level applications (e.g. PA, Origamist) should define that behavior
