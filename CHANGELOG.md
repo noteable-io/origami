@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/origami/blob/0.0.35/CHANGELOG.md)
 
 ## [Unreleased]
+
+### [1.1.3] - 2023-10-23
 ### Added
 - Programmatically share access to Spaces, Projects, and Notebooks/Files by email and access level. E.g. `await api_client.share_file(file_id, email, 'viewer')`
 
