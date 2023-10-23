@@ -8,7 +8,7 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 
 ## [Unreleased]
 
-### [1.1.4] - 2023-10-24
+### [1.1.4] - 2023-10-23
 ### Added
 - Programmatically adjust Space, Project, and Notebook/File visibility (e.g. `private`, `open`, `public`)
 
