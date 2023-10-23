@@ -1,3 +1,4 @@
+import enum
 import logging
 import os
 import uuid
@@ -16,6 +17,27 @@ from origami.models.kernels import KernelSession
 from origami.models.notebook import Notebook
 
 logger = logging.getLogger(__name__)
+
+
+class AccessLevel(enum.Enum):
+    owner = "role:owner"
+    contributor = "role:contributor"
+    commenter = "role:commenter"
+    viewer = "role:viewer"
+    executor = "role:executor"
+
+    @classmethod
+    def from_str(cls, s: str):
+        for level in cls:
+            if level.name == s:
+                return level
+        raise ValueError(f"Invalid access level {s}")
+
+
+class Resource(enum.Enum):
+    spaces = "spaces"
+    projects = "projects"
+    files = "files"
 
 
 class APIClient:
@@ -66,6 +88,46 @@ class APIClient:
         self.add_tags_and_contextvars(user_id=str(user.id))
         return user
 
+    async def share_resource(
+        self, resource: Resource, resource_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another User as a collaborator to a Resource.
+        """
+        user_lookup_endpoint = f"/{resource.value}/{resource_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        if isinstance(level, str):
+            level = AccessLevel.from_str(level)
+        share_endpoint = f"/{resource.value}/{resource_id}/users"
+        for item in users:
+            user_id = item["id"]
+            share_body = {"access_level": level.value, "user_id": user_id}
+            share_resp = await self.client.put(share_endpoint, json=share_body)
+            share_resp.raise_for_status()
+        return len(users)
+
+    async def unshare_resource(self, resource: Resource, resource_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Resource for a User
+        """
+        # Need to look this up still to go from email to user-id
+        user_lookup_endpoint = f"/{resource.value}/{resource_id}/shareable-users"
+        user_lookup_params = {"q": email}
+        user_lookup_resp = await self.client.get(user_lookup_endpoint, params=user_lookup_params)
+        user_lookup_resp.raise_for_status()
+        users = user_lookup_resp.json()["data"]
+
+        for item in users:
+            user_id = item["id"]
+            unshare_endpoint = f"/{resource.value}/{resource_id}/users/{user_id}"
+            unshare_resp = await self.client.delete(unshare_endpoint)
+            unshare_resp.raise_for_status()
+        return len(users)
+
     # Spaces are collections of Projects. Some "scoped" resources such as Secrets and Datasources
     # can also be attached to a Space and made available to all users of that Space.
     async def create_space(self, name: str, description: Optional[str] = None) -> Space:
@@ -99,6 +161,20 @@ class APIClient:
         resp.raise_for_status()
         projects = [Project.model_validate(project) for project in resp.json()]
         return projects
+
+    async def share_space(
+        self, space_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another user as a collaborator to a Space.
+        """
+        return await self.share_resource(Resource.spaces, space_id, email, level)
+
+    async def unshare_space(self, space_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Space for a User
+        """
+        return await self.unshare_resource(Resource.spaces, space_id, email)
 
     # Projects are collections of Files, including Notebooks. When a Kernel is launched for a
     # Notebook, all Files in the Project are volume mounted into the Kernel container at startup.
@@ -137,6 +213,20 @@ class APIClient:
         resp.raise_for_status()
         project = Project.model_validate(resp.json())
         return project
+
+    async def share_project(
+        self, project_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another User as a collaborator to a Project.
+        """
+        return await self.share_resource(Resource.projects, project_id, email, level)
+
+    async def unshare_project(self, project_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Project for a User
+        """
+        return await self.unshare_resource(Resource.projects, project_id, email)
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
         """List all Files in a Project. Files do not have presigned download urls included here."""
@@ -264,6 +354,20 @@ class APIClient:
         resp.raise_for_status()
         file = File.model_validate(resp.json())
         return file
+
+    async def share_file(
+        self, file_id: uuid.UUID, email: str, level: Union[str, AccessLevel]
+    ) -> int:
+        """
+        Add another User as a collaborator to a Notebook or File.
+        """
+        return await self.share_resource(Resource.files, file_id, email, level)
+
+    async def unshare_file(self, file_id: uuid.UUID, email: str) -> int:
+        """
+        Remove access to a Notebook or File for a User
+        """
+        return await self.unshare_resource(Resource.files, file_id, email)
 
     async def get_datasources_for_notebook(self, file_id: uuid.UUID) -> List[DataSource]:
         """Return a list of Datasources that can be used in SQL cells within a Notebook"""
