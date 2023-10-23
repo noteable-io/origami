@@ -1,5 +1,7 @@
 import asyncio
+import uuid
 
+import httpx
 import pytest
 
 from origami.clients.api import APIClient
@@ -83,3 +85,9 @@ async def test_replace_cell_content(api_client: APIClient, notebook_maker):
         assert cell.source == "2 + 2"
     finally:
         await rtu_client.shutdown()
+
+
+async def test_connect_bad_file_id(api_client: APIClient):
+    with pytest.raises(httpx.HTTPStatusError) as e:
+        await api_client.connect_realtime(file=uuid.uuid4())
+    assert e.value.response.status_code == 404
