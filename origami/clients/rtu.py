@@ -15,7 +15,6 @@ from typing import Awaitable, Callable, Dict, List, Literal, Optional, Type
 
 import httpx
 import orjson
-from pydantic import parse_obj_as
 from sending.backends.websocket import WebsocketManager
 from websockets.client import WebSocketClientProtocol
 
@@ -51,7 +50,7 @@ from origami.models.rtu.channels.kernels import (
     KernelStatusUpdateResponse,
 )
 from origami.models.rtu.channels.system import AuthenticateReply, AuthenticateRequest
-from origami.models.rtu.discriminators import RTURequest, RTUResponse
+from origami.models.rtu.discriminators import RTURequest, RTUResponse, RTUResponseParser
 from origami.models.rtu.errors import InconsistentStateEvent
 from origami.notebook.builder import CellNotFound, NotebookBuilder
 
@@ -87,7 +86,8 @@ class RTUManager(WebsocketManager):
         # to error or BaseRTUResponse)
         data: dict = orjson.loads(contents)
         data["channel_prefix"] = data.get("channel", "").split("/")[0]
-        rtu_event = parse_obj_as(RTUResponse, data)
+
+        rtu_event = RTUResponseParser.validate_python(data)
 
         # Debug Logging
         extra_dict = {
@@ -98,7 +98,10 @@ class RTUManager(WebsocketManager):
         if isinstance(rtu_event, NewDeltaEvent):
             extra_dict["delta_type"] = rtu_event.data.delta_type
             extra_dict["delta_action"] = rtu_event.data.delta_action
-        logger.debug(f"Received: {data}\nParsed: {rtu_event.dict()}", extra=extra_dict)
+
+        if logging.DEBUG >= logging.root.level:
+            logger.debug(f"Received: {data}\nParsed: {rtu_event.model_dump()}", extra=extra_dict)
+
         return rtu_event
 
     async def outbound_message_hook(self, contents: RTURequest) -> str:
@@ -106,7 +109,7 @@ class RTUManager(WebsocketManager):
         Hook applied to every message we send out over the websocket.
          - Anything calling .send() should pass in an RTU Request pydantic model
         """
-        return contents.json()
+        return contents.model_dump_json()
 
     def send(self, message: RTURequest) -> None:
         """Override WebsocketManager-defined method for type hinting and logging."""
@@ -118,7 +121,9 @@ class RTUManager(WebsocketManager):
         if message.event == "new_delta_request":
             extra_dict["delta_type"] = message.data.delta.delta_type
             extra_dict["delta_action"] = message.data.delta.delta_action
+
         logger.debug("Sending: RTU request", extra=extra_dict)
+
         super().send(message)  # the .outbound_message_hook handles serializing this to json
 
     async def on_exception(self, exc: Exception):
@@ -150,8 +155,10 @@ class DeltaCallback:
     fn: Callable[[FileDelta], Awaitable[None]]
 
     def __init__(self, delta_class: Type[FileDelta], fn: Callable[[FileDelta], Awaitable[None]]):
-        if not issubclass(delta_class, FileDelta):
-            raise ValueError(f"delta_class must be a FileDelta subclass, got {delta_class}")
+        # With pydantic2, raises: "TypeError: Subscripted generics cannot be used with class and instance checks"
+        # Sigh.
+        # if not issubclass(delta_class, FileDelta):
+        #    raise ValueError(f"delta_class must be a FileDelta subclass, got {delta_class}")
 
         self.delta_class = delta_class
         self.fn = fn
@@ -460,7 +467,7 @@ class RTUClient:
             resp = await plain_http_client.get(file.presigned_download_url)
             resp.raise_for_status()
 
-        seed_notebook = Notebook.parse_obj(resp.json())
+        seed_notebook = Notebook.model_validate(resp.json())
         self.builder = NotebookBuilder(seed_notebook=seed_notebook)
 
     # See Sending backends.websocket for details but a quick refresher on hook timing:
@@ -499,7 +506,7 @@ class RTUClient:
         # we observe the auth reply. Instead use the unauth_ws directly and manually serialize
         ws: WebSocketClientProtocol = await self.manager.unauth_ws
         logger.info(f"Sending auth request with jwt {jwt[:5]}...{jwt[-5:]}")
-        await ws.send(auth_request.json())
+        await ws.send(auth_request.model_dump_json())
 
     async def on_auth(self, msg: AuthenticateReply):
         # hook for Application code to override, consider catastrophic failure on auth failure

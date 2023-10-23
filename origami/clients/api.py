@@ -62,7 +62,7 @@ class APIClient:
         endpoint = "/users/me"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        user = User.parse_obj(resp.json())
+        user = User.model_validate(resp.json())
         self.add_tags_and_contextvars(user_id=str(user.id))
         return user
 
@@ -72,7 +72,7 @@ class APIClient:
         endpoint = "/spaces"
         resp = await self.client.post(endpoint, json={"name": name, "description": description})
         resp.raise_for_status()
-        space = Space.parse_obj(resp.json())
+        space = Space.model_validate(resp.json())
         self.add_tags_and_contextvars(space_id=str(space.id))
         return space
 
@@ -81,7 +81,7 @@ class APIClient:
         endpoint = f"/spaces/{space_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        space = Space.parse_obj(resp.json())
+        space = Space.model_validate(resp.json())
         return space
 
     async def delete_space(self, space_id: uuid.UUID) -> None:
@@ -97,7 +97,7 @@ class APIClient:
         endpoint = f"/spaces/{space_id}/projects"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        projects = [Project.parse_obj(project) for project in resp.json()]
+        projects = [Project.model_validate(project) for project in resp.json()]
         return projects
 
     # Projects are collections of Files, including Notebooks. When a Kernel is launched for a
@@ -118,7 +118,7 @@ class APIClient:
             },
         )
         resp.raise_for_status()
-        project = Project.parse_obj(resp.json())
+        project = Project.model_validate(resp.json())
         self.add_tags_and_contextvars(project_id=str(project.id))
         return project
 
@@ -127,7 +127,7 @@ class APIClient:
         endpoint = f"/projects/{project_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        project = Project.parse_obj(resp.json())
+        project = Project.model_validate(resp.json())
         return project
 
     async def delete_project(self, project_id: uuid.UUID) -> Project:
@@ -135,7 +135,7 @@ class APIClient:
         endpoint = f"/projects/{project_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
-        project = Project.parse_obj(resp.json())
+        project = Project.model_validate(resp.json())
         return project
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
@@ -144,7 +144,7 @@ class APIClient:
         endpoint = f"/projects/{project_id}/files"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        files = [File.parse_obj(file) for file in resp.json()]
+        files = [File.model_validate(file) for file in resp.json()]
         return files
 
     # Files are flat files (like text, csv, etc) or Notebooks.
@@ -176,7 +176,7 @@ class APIClient:
         upload_url = js["presigned_upload_url_info"]["parts"][0]["upload_url"]
         upload_id = js["presigned_upload_url_info"]["upload_id"]
         upload_key = js["presigned_upload_url_info"]["key"]
-        file = File.parse_obj(js)
+        file = File.model_validate(js)
 
         # (2) Upload to pre-signed url
         # TODO: remove this hack if/when we get containers in Skaffold to be able to translate
@@ -214,7 +214,7 @@ class APIClient:
         self.add_tags_and_contextvars(project_id=str(project_id))
         if notebook is None:
             notebook = Notebook()
-        content = notebook.json().encode()
+        content = notebook.model_dump_json().encode()
         file = await self._multi_step_file_create(project_id, path, "notebook", content)
         self.add_tags_and_contextvars(file_id=str(file.id))
         logger.info("Created new notebook", extra={"file_id": str(file.id)})
@@ -226,7 +226,7 @@ class APIClient:
         endpoint = f"/v1/files/{file_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        file = File.parse_obj(resp.json())
+        file = File.model_validate(resp.json())
         return file
 
     async def get_file_content(self, file_id: uuid.UUID) -> bytes:
@@ -254,7 +254,7 @@ class APIClient:
         endpoint = f"/files/{file_id}/versions"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        versions = [FileVersion.parse_obj(version) for version in resp.json()]
+        versions = [FileVersion.model_validate(version) for version in resp.json()]
         return versions
 
     async def delete_file(self, file_id: uuid.UUID) -> File:
@@ -262,7 +262,7 @@ class APIClient:
         endpoint = f"/v1/files/{file_id}"
         resp = await self.client.delete(endpoint)
         resp.raise_for_status()
-        file = File.parse_obj(resp.json())
+        file = File.model_validate(resp.json())
         return file
 
     async def get_datasources_for_notebook(self, file_id: uuid.UUID) -> List[DataSource]:
@@ -288,7 +288,7 @@ class APIClient:
         }
         resp = await self.client.post(endpoint, json=data)
         resp.raise_for_status()
-        kernel_session = KernelSession.parse_obj(resp.json())
+        kernel_session = KernelSession.model_validate(resp.json())
         self.add_tags_and_contextvars(kernel_session_id=str(kernel_session.id))
         logger.info(
             "Launched new kernel",
@@ -308,7 +308,7 @@ class APIClient:
         endpoint = f"/outputs/collection/{output_collection_id}"
         resp = await self.client.get(endpoint)
         resp.raise_for_status()
-        return KernelOutputCollection.parse_obj(resp.json())
+        return KernelOutputCollection.model_validate(resp.json())
 
     async def connect_realtime(self, file: Union[File, uuid.UUID, str]) -> "RTUClient":  # noqa
         """

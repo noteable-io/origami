@@ -1,6 +1,8 @@
 from typing import Annotated, Union
 
 from pydantic import Field
+from pydantic import TypeAdapter
+
 
 from origami.models.rtu.base import BaseRTUResponse
 from origami.models.rtu.channels.files import FileRequests, FileResponses
@@ -34,3 +36,6 @@ RTUResponse = Union[
     RTUError,
     BaseRTUResponse,
 ]
+
+
+RTUResponseParser = TypeAdapter(RTUResponse)
