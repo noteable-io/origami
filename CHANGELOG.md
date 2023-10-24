@@ -10,6 +10,10 @@ For pre-1.0 releases, see [0.0.35 Changelog](https://github.com/noteable-io/orig
 ### Changed
 - Upgraded pydantic to 2.4.2 up from 1.X.
 
+### [1.1.4] - 2023-10-23
+### Added
+- Programmatically adjust Space, Project, and Notebook/File visibility (e.g. `private`, `open`, `public`)
+
 ### [1.1.3] - 2023-10-23
 ### Added
 - Programmatically share access to Spaces, Projects, and Notebooks/Files by email and access level. E.g. `await api_client.share_file(file_id, email, 'viewer')`

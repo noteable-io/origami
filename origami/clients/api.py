@@ -34,6 +34,26 @@ class AccessLevel(enum.Enum):
         raise ValueError(f"Invalid access level {s}")
 
 
+class Visibility(enum.Enum):
+    """Visibility levels associated with a specific Resource.
+
+    Private = only invited users can access
+    Open = any member can access
+    Public = anyone can access
+    """
+
+    private = "private"
+    open = "open"
+    public = "public"
+
+    @classmethod
+    def from_str(cls, s: str):
+        for vis in cls:
+            if vis.name == s:
+                return vis
+        raise ValueError(f"Invalid visibility {s}")
+
+
 class Resource(enum.Enum):
     spaces = "spaces"
     projects = "projects"
@@ -128,6 +148,43 @@ class APIClient:
             unshare_resp.raise_for_status()
         return len(users)
 
+    async def change_resource_visibility(
+        self,
+        resource: Resource,
+        resource_id: uuid.UUID,
+        visibility: Visibility,
+        visibility_default_access_level: Optional[AccessLevel] = None,
+    ):
+        """
+        Change overall visibility of a Resource.
+
+        visibility_default_access_level is only required when visibility is not private.
+        """
+        if isinstance(visibility, str):
+            visibility = Visibility.from_str(visibility)
+
+        if visibility is not Visibility.private and visibility_default_access_level is None:
+            raise ValueError(
+                "visibility_default_access_level must be set when visibility is not private"
+            )
+
+        patch_body = {"visibility": visibility.value}
+        if isinstance(visibility_default_access_level, str):
+            visibility_default_access_level = AccessLevel.from_str(
+                visibility_default_access_level
+            ).value
+
+        # always set this as either None or a valid (string) value
+        patch_body["visibility_default_access_level"] = visibility_default_access_level
+
+        endpoint = f"/{resource.value}/{resource_id}"
+        resp = await self.client.patch(
+            endpoint,
+            json=patch_body,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     # Spaces are collections of Projects. Some "scoped" resources such as Secrets and Datasources
     # can also be attached to a Space and made available to all users of that Space.
     async def create_space(self, name: str, description: Optional[str] = None) -> Space:
@@ -175,6 +232,22 @@ class APIClient:
         Remove access to a Space for a User
         """
         return await self.unshare_resource(Resource.spaces, space_id, email)
+
+    async def change_space_visibility(
+        self,
+        space_id: uuid.UUID,
+        visibility: Visibility,
+        visibility_default_access_level: Optional[AccessLevel] = None,
+    ) -> Visibility:
+        """
+        Change overall visibility of a Space
+        """
+        return await self.change_resource_visibility(
+            Resource.spaces,
+            space_id,
+            visibility,
+            visibility_default_access_level,
+        )
 
     # Projects are collections of Files, including Notebooks. When a Kernel is launched for a
     # Notebook, all Files in the Project are volume mounted into the Kernel container at startup.
@@ -227,6 +300,22 @@ class APIClient:
         Remove access to a Project for a User
         """
         return await self.unshare_resource(Resource.projects, project_id, email)
+
+    async def change_project_visibility(
+        self,
+        project_id: uuid.UUID,
+        visibility: Visibility,
+        visibility_default_access_level: Optional[AccessLevel] = None,
+    ) -> Visibility:
+        """
+        Change overall visibility of a Project
+        """
+        return await self.change_resource_visibility(
+            Resource.projects,
+            project_id,
+            visibility,
+            visibility_default_access_level,
+        )
 
     async def list_project_files(self, project_id: uuid.UUID) -> List[File]:
         """List all Files in a Project. Files do not have presigned download urls included here."""
@@ -368,6 +457,22 @@ class APIClient:
         Remove access to a Notebook or File for a User
         """
         return await self.unshare_resource(Resource.files, file_id, email)
+
+    async def change_file_visibility(
+        self,
+        file_id: uuid.UUID,
+        visibility: Visibility,
+        visibility_default_access_level: Optional[AccessLevel] = None,
+    ) -> Visibility:
+        """
+        Change overall visibility of a Notebook or File
+        """
+        return await self.change_resource_visibility(
+            Resource.files,
+            file_id,
+            visibility,
+            visibility_default_access_level,
+        )
 
     async def get_datasources_for_notebook(self, file_id: uuid.UUID) -> List[DataSource]:
         """Return a list of Datasources that can be used in SQL cells within a Notebook"""
