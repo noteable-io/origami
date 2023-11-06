@@ -310,6 +310,10 @@ class RTUClient:
         # An inconsistent state event means the Notebook was updated in a way that "broke" Delta
         # history, and the RTUClient needs to pull in the seed notebook and re-apply deltas from
         # a "new" current version id in order to catch up
+        #
+        # However if we get several inconsistent state events (say from getting them on file
+        # resubscribe), we'll call catastrophic_failure to let the application handle tear-down
+        self.inconsistent_state_event_count = 0
         self.register_rtu_event_callback(
             rtu_event=InconsistentStateEvent, fn=self.on_inconsistent_state_event
         )
@@ -634,6 +638,10 @@ class RTUClient:
         the least, to stop getting new deltas in. Then we need to figure out what the new current
         version id is, and pull down seed notebook, and then resubscribe to file channel.
         """
+        if self.inconsistent_state_event_count >= 3:
+            logger.warning("Calling catastrophic failure after 3 inconsistent state events")
+            return await self.catastrophic_failure()
+
         logger.info("Received inconsistent state event, resetting NotebookBuilder")
         # There's the chance for some gnarly but rare edge cases here that would probably take a
         # serious amount of thinking and logic to handle. Basically, what happens if new Deltas
@@ -647,6 +655,7 @@ class RTUClient:
         await self.file_unsubscribe()
         await self.load_seed_notebook()
         await self.send_file_subscribe()
+        self.inconsistent_state_event_count += 1
 
     async def _on_delta_recv(self, msg: NewDeltaEvent):
         """
