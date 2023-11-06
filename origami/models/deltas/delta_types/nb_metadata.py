@@ -11,8 +11,8 @@ class NBMetadataDelta(FileDeltaBase):
 
 class NBMetadataProperties(BaseModel):
     path: list
-    value: Any
-    prior_value: Optional[Any]
+    value: Any = None
+    prior_value: Optional[Any] = None
 
 
 class NBMetadataUpdate(NBMetadataDelta):

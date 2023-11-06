@@ -32,7 +32,7 @@ class KernelSubscribeRequest(KernelsRequest):
 # Kernel status is returned on subscribe and also updated through kernel status updates
 class KernelSubscribeReplyData(BaseModel):
     success: bool
-    kernel_session: Optional[KernelStatusUpdate]  # None if no Kernel is alive for a file
+    kernel_session: Optional[KernelStatusUpdate] = None  # None if no Kernel is alive for a file
 
 
 class KernelSubscribeReply(KernelsResponse):
@@ -78,7 +78,7 @@ class IntegratedAIRequestData(BaseModel):
     prompt: str
     # this may not be called on a specific cell, but at a specific point in time at a generic
     # "document" level, so we don't require a cell_id
-    cell_id: Optional[str]
+    cell_id: Optional[str] = None
     # if a cell_id is provided and this is True, the result will be added to the cell's output
     # instead of just sent back as an RTU reply
     output_for_response: bool = False

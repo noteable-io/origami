@@ -49,7 +49,7 @@ class NotebookBuilder:
         if not isinstance(seed_notebook, Notebook):
             raise TypeError("seed_notebook must be a Pydantic Notebook model")
         self._seed_notebook = seed_notebook
-        self.nb: Notebook = seed_notebook.copy()
+        self.nb: Notebook = seed_notebook.model_copy()
         self.dmp = diff_match_patch.diff_match_patch()
 
         cell_id_counts = collections.defaultdict(int)

@@ -3,7 +3,7 @@ import pathlib
 import uuid
 from typing import Literal, Optional
 
-from pydantic import validator
+from pydantic import model_validator
 
 from origami.models.api.base import ResourceBase
 
@@ -22,10 +22,12 @@ class File(ResourceBase):
     presigned_download_url: Optional[str] = None
     url: Optional[str] = None
 
-    @validator("url", always=True)
-    def construct_url(cls, v, values):
+    @model_validator(mode="after")
+    def construct_url(self):
         noteable_url = os.environ.get("PUBLIC_NOTEABLE_URL", "https://app.noteable.io")
-        return f"{noteable_url}/f/{values['id']}/{values['path']}"
+        self.url = f"{noteable_url}/f/{self.id}/{self.path}"
+
+        return self
 
 
 class FileVersion(ResourceBase):

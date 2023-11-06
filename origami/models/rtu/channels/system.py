@@ -64,7 +64,7 @@ class WhoAmIRequest(SystemRequest):
 
 
 class WhoAmIResponseData(BaseModel):
-    user: Optional[User]  # is None if RTU session isn't authenticated
+    user: Optional[User] = None  # is None if RTU session isn't authenticated
 
 
 class WhoAmIResponse(SystemResponse):
